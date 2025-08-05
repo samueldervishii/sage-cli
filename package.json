@@ -1,13 +1,15 @@
 {
   "name": "sophia-cli",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sophia - Interactive AI CLI by Samuel",
   "main": "index.js",
   "bin": {
     "sophia": "./bin/sophia.mjs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md,mjs}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md,mjs}\""
   },
   "keywords": [],
   "author": "",
@@ -15,6 +17,7 @@
   "type": "module",
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@modelcontextprotocol/sdk": "^1.17.1",
     "axios": "^1.9.0",
     "chalk": "^5.3.0",
     "cli-spinners": "^3.2.0",
@@ -27,5 +30,8 @@
     "ora": "^8.1.0",
     "readline-sync": "^1.4.10",
     "unzipper": "^0.12.3"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0"
   }
 }

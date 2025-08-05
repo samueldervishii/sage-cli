@@ -1,20 +1,16 @@
 # Sophia CLI
 
-**Sophia** - Your Interactive AI Assistant for generating mock servers and more!
-
-Created by Samuel, powered by Google's Gemini AI.
+Interactive CLI tool for generating mock servers and APIs.
 
 ## Features
 
-- **Beautiful Interactive Terminal UI** with gradient colors and emojis
-- **Powered by Gemini AI** for fast and accurate code generation
+- **Interactive Terminal UI** with gradient colors and emojis
+- **AI-powered code generation** for fast and accurate mock server creation
 - **Interactive Chat Mode** - conversational interface for better UX
 - **Command History** - track all your previous prompts
 - **Configuration Management** - customize settings easily
 - **Smart Cleanup** - manage generated files efficiently
 - **Endpoint Testing** - test your generated APIs instantly
-- **Spring Boot Integration** - create Java projects via Spring Initializr
-- **Swagger Support** - generate projects from OpenAPI specs
 
 ## Installation
 
@@ -23,10 +19,10 @@ Created by Samuel, powered by Google's Gemini AI.
    ```bash
    npm install
    ```
-3. Set up your Gemini API key:
+3. Set up your API key:
    ```bash
    cp .env.example .env
-   # Edit .env and add your Gemini API key
+   # Edit .env and add your API key
    ```
 4. Make it globally available:
    ```bash
@@ -43,17 +39,15 @@ Simply run:
 sophia
 ```
 
-This opens the beautiful interactive terminal where you can:
+This opens the interactive terminal where you can:
 
-- Chat with Sophia to generate mock servers
+- Chat to generate mock servers
 - Browse command history
 - Manage configuration
 - Clean generated files
 - Test endpoints
-- Create Spring Boot projects
-- Generate from Swagger files
 
-### Legacy Command Mode
+### Command Mode
 
 For quick one-off commands:
 
@@ -71,7 +65,7 @@ sophia clean --all
 sophia --help
 ```
 
-## Configuration ⚙️
+## Configuration
 
 Sophia uses a `.sophiarc.json` file for configuration. You can manage it through the interactive interface or manually:
 
@@ -84,16 +78,14 @@ Sophia uses a `.sophiarc.json` file for configuration. You can manage it through
 }
 ```
 
-## Environment Variables 🔧
+## Environment Variables
 
 Create a `.env` file with your API configuration:
 
 ```bash
-# Required: Gemini AI API Key
-GEMINI_API_KEY=your_gemini_api_key_here
+# Required: API Key
+API_KEY=your_api_key_here
 ```
-
-Get your Gemini API key from: https://makersuite.google.com/app/apikey
 
 ## Examples
 
@@ -109,19 +101,15 @@ sophia "create a GET /users endpoint that returns a list of users with id, name,
 sophia "build a REST API for a blog with posts, comments, and users. Include CRUD operations for each resource"
 ```
 
-### Generate Spring Boot Project
-
-Use the interactive mode and select "Create Spring Boot Project"
 
 ## File Structure
 
 ```
 sophia-cli/
 ├── bin/
-│   └── mock-cli.mjs        # Main CLI entry point
+│   └── sophia.mjs          # Main CLI entry point
 ├── lib/
-│   ├── generate.mjs        # Code generation logic (Gemini AI)
-│   └── runner.mjs          # Server runner
+│   └── generate.mjs        # Code generation logic
 ├── generated/              # Generated mock servers
 ├── logs/
 │   └── history.json        # Command history
@@ -130,9 +118,9 @@ sophia-cli/
 └── package.json
 ```
 
-## Features in Detail 🔍
+## Features in Detail
 
-### Beautiful Interface
+### Interactive Interface
 
 - Gradient ASCII art banner
 - Color-coded messages and status indicators
@@ -141,7 +129,6 @@ sophia-cli/
 
 ### AI-Powered Generation
 
-- Uses Google's Gemini 2.0 Flash model
 - Optimized prompts for Express.js code generation
 - Automatic ESM syntax conversion
 - Smart code validation and cleanup
@@ -162,10 +149,10 @@ sophia-cli/
 
 ### "API_KEY" Error
 
-Make sure your `.env` file contains a valid Gemini API key:
+Make sure your `.env` file contains a valid API key:
 
 ```bash
-GEMINI_API_KEY=your_actual_api_key_here
+API_KEY=your_actual_api_key_here
 ```
 
 ### Permission Denied
@@ -173,7 +160,7 @@ GEMINI_API_KEY=your_actual_api_key_here
 If you get permission errors, try:
 
 ```bash
-chmod +x bin/mock-cli.mjs
+chmod +x bin/sophia.mjs
 ```
 
 ### Dependencies Issues
@@ -192,7 +179,3 @@ This is a personal project by Samuel, but feel free to:
 - Report issues
 - Suggest features
 - Submit pull requests
-
-**Enjoy using Sophia!**
-
-_"Making mock server generation as easy as having a conversation"_
