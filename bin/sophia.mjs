@@ -11,7 +11,10 @@ import chalk from "chalk";
 import gradient from "gradient-string";
 import inquirer from "inquirer";
 import ora from "ora";
+import axios from "axios";
 import SimpleChat from "../lib/simple-chat.mjs";
+import FilesystemService from "../lib/filesystem-service.mjs";
+import TerminalService from "../lib/terminal-service.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +39,7 @@ function displayBanner() {
 
   const subtitle = chalk.cyan("Your Interactive AI Assistant");
   const author = `${chalk.cyan("Created by")} ${chalk.italic.bold.blueBright(`\u001b]8;;https://github.com/samueldervishii\u0007Samuel\u001b]8;;\u0007`)}`;
-  const version = chalk.underline.cyan("Version: 1.1.0");
+  const version = chalk.underline.cyan("Version: 1.3.0");
 
   const padding = "   ";
   console.log(
@@ -47,6 +50,189 @@ function displayBanner() {
       "  " +
       version
   );
+}
+
+async function showVersion() {
+  const packagePath = path.join(__dirname, "../package.json");
+  const packageData = await fs.readJson(packagePath);
+
+  displayBanner();
+  console.log();
+  console.log(chalk.cyan(`Version: ${packageData.version}`));
+  console.log(chalk.gray(`Node.js: ${process.version}`));
+  console.log(chalk.gray(`Platform: ${process.platform} ${process.arch}`));
+
+  const buildInfo = await getBuildInfo();
+  if (buildInfo) {
+    console.log(chalk.gray(`Build: ${buildInfo.hash} (${buildInfo.date})`));
+  }
+}
+
+async function getBuildInfo() {
+  try {
+    const { stdout } = await new Promise(resolve => {
+      const child = spawn("git", ["rev-parse", "--short", "HEAD"], {
+        cwd: __dirname + "/..",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+
+      let output = "";
+      child.stdout.on("data", data => (output += data.toString()));
+      child.on("close", code => {
+        if (code === 0) {
+          resolve({ stdout: output.trim() });
+        } else {
+          resolve({ stdout: null });
+        }
+      });
+      child.on("error", () => resolve({ stdout: null }));
+    });
+
+    if (stdout) {
+      const { stdout: dateOutput } = await new Promise(resolve => {
+        const child = spawn(
+          "git",
+          ["log", "-1", "--format=%cd", "--date=short"],
+          {
+            cwd: __dirname + "/..",
+            stdio: ["ignore", "pipe", "ignore"],
+          }
+        );
+
+        let output = "";
+        child.stdout.on("data", data => (output += data.toString()));
+        child.on("close", () => resolve({ stdout: output.trim() }));
+        child.on("error", () => resolve({ stdout: null }));
+      });
+
+      return {
+        hash: stdout,
+        date: dateOutput || "unknown",
+      };
+    }
+  } catch (error) {
+    return null;
+  }
+  return null;
+}
+
+async function showChangelog() {
+  console.log(chalk.cyan("\n Sophia CLI Changelog\n"));
+
+  const changelogData = [
+    {
+      version: "1.3.0",
+      date: "2025-08-08",
+      changes: [
+        "Added version control system",
+        "Added changelog display",
+        "Added update checking functionality",
+        "Enhanced help system",
+        "Improved documentation",
+      ],
+    },
+    {
+      version: "1.2.0",
+      date: "2025-08-07",
+      changes: [
+        "Web search integration via MCP",
+        "Secure filesystem access",
+        "Improved chat mode stability",
+        "Fixed generation timeout issues",
+      ],
+    },
+    {
+      version: "1.1.0",
+      date: "2025-08-05",
+      changes: [
+        "Interactive chat mode",
+        "Conversation persistence",
+        "Enhanced UI with gradients",
+        "Better error handling",
+      ],
+    },
+    {
+      version: "1.0.0",
+      date: "2025-08-01",
+      changes: [
+        "Initial release",
+        "AI-powered mock server generation",
+        "Interactive terminal interface",
+        "Configuration management",
+      ],
+    },
+  ];
+
+  changelogData.forEach(release => {
+    console.log(
+      chalk.green.bold(`v${release.version}`) + chalk.gray(` (${release.date})`)
+    );
+    release.changes.forEach(change => {
+      console.log(`  ${change}`);
+    });
+    console.log();
+  });
+}
+
+async function checkForUpdates() {
+  const spinner = ora("Checking for updates...").start();
+
+  try {
+    const packagePath = path.join(__dirname, "../package.json");
+    const packageData = await fs.readJson(packagePath);
+    const currentVersion = packageData.version;
+
+    // Check npm registry for latest version
+    const response = await axios.get(
+      `https://registry.npmjs.org/${packageData.name}/latest`
+    );
+    const latestVersion = response.data.version;
+
+    spinner.stop();
+
+    const comparison = compareVersions(currentVersion, latestVersion);
+
+    if (comparison === 0) {
+      console.log(chalk.green("You're running the latest version!"));
+      console.log(chalk.gray(`Current version: ${currentVersion}`));
+    } else if (comparison < 0) {
+      console.log(chalk.yellow("A new version is available!"));
+      console.log(chalk.gray(`Current: ${currentVersion}`));
+      console.log(chalk.cyan(`Latest: ${latestVersion}`));
+      console.log(chalk.white("\nTo update, run:"));
+      console.log(chalk.cyan(`  npm update -g ${packageData.name}`));
+    } else {
+      console.log(chalk.blue("You're running a development version!"));
+      console.log(chalk.gray(`Current: ${currentVersion} (dev)`));
+      console.log(chalk.yellow("This is a local development build."));
+    }
+  } catch (error) {
+    spinner.stop();
+
+    if (error.code === "ENOTFOUND" || error.response?.status === 404) {
+      console.log(chalk.yellow("Package not published to npm registry yet"));
+      console.log(chalk.gray("This appears to be a local development version"));
+    } else {
+      console.log(chalk.red("Failed to check for updates"));
+      console.log(chalk.gray("Please check your internet connection"));
+    }
+  }
+}
+
+function compareVersions(version1, version2) {
+  const v1Parts = version1.split(".").map(Number);
+  const v2Parts = version2.split(".").map(Number);
+
+  const maxLength = Math.max(v1Parts.length, v2Parts.length);
+  while (v1Parts.length < maxLength) v1Parts.push(0);
+  while (v2Parts.length < maxLength) v2Parts.push(0);
+
+  for (let i = 0; i < maxLength; i++) {
+    if (v1Parts[i] > v2Parts[i]) return 1;
+    if (v1Parts[i] < v2Parts[i]) return -1;
+  }
+
+  return 0;
 }
 
 async function startInteractiveMode() {
@@ -62,8 +248,11 @@ async function startInteractiveMode() {
         choices: [
           { name: "Chat Mode", value: "conversational-chat" },
           { name: "Generate Mock Server (Quick Mode)", value: "chat" },
+          { name: "File Explorer (Filesystem)", value: "filesystem" },
+          { name: "Terminal Commands", value: "terminal" },
           { name: "View History", value: "history" },
           { name: "Configuration", value: "config" },
+          { name: "Version Control", value: "version-control" },
           { name: "Clean Generated Files", value: "clean" },
           { name: "Test Endpoint", value: "test" },
           { name: "Exit", value: "exit" },
@@ -78,11 +267,20 @@ async function startInteractiveMode() {
       case "chat":
         await handleChat();
         break;
+      case "filesystem":
+        await handleFilesystem();
+        break;
+      case "terminal":
+        await handleTerminal();
+        break;
       case "history":
         await showHistory();
         break;
       case "config":
         await handleConfig();
+        break;
+      case "version-control":
+        await handleVersionControl();
         break;
       case "clean":
         await cleanFiles();
@@ -107,13 +305,12 @@ async function startConversationalChat() {
   try {
     const chat = new SimpleChat();
     const result = await chat.startChat();
-    
-    // If user typed "menu", return to main menu instead of exiting
+
     if (result === "menu") {
       console.log(chalk.cyan("Returning to main menu...\n"));
-      return; // Return to main menu loop
+      return;
     } else {
-      process.exit(0); // Exit if user typed "exit" or chat ended normally
+      process.exit(0);
     }
   } catch (error) {
     console.error(chalk.red("Error starting chat mode:"), error.message);
@@ -145,21 +342,19 @@ async function handleChat() {
 
   try {
     const generatorPath = path.join(__dirname, "../lib/generate.mjs");
-    
-    // Wrap child process in a Promise to properly await completion
+
     await new Promise((resolve, reject) => {
-      const child = spawn("node", [generatorPath, prompt], { 
+      const child = spawn("node", [generatorPath, prompt], {
         stdio: ["pipe", "pipe", "pipe"],
-        detached: false
+        detached: false,
       });
 
       let output = "";
       let hasOutput = false;
-      
+
       child.stdout.on("data", data => {
         const text = data.toString();
         output += text;
-        // Show real-time output
         if (!hasOutput) {
           spinner.stop();
           hasOutput = true;
@@ -177,13 +372,14 @@ async function handleChat() {
         process.stderr.write(chalk.red(text));
       });
 
-      // Add timeout to prevent hanging
       const timeout = setTimeout(() => {
-        console.log(chalk.yellow("Generation is taking longer than expected..."));
-        child.kill('SIGTERM');
+        console.log(
+          chalk.yellow("Generation is taking longer than expected...")
+        );
+        child.kill("SIGTERM");
         reject(new Error("Generation timeout"));
-      }, 30000); // 30 second timeout
-      
+      }, 30000);
+
       child.on("close", code => {
         clearTimeout(timeout);
         if (!hasOutput) {
@@ -295,6 +491,166 @@ async function handleConfig() {
   }
 }
 
+async function handleVersionControl() {
+  const { versionAction } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "versionAction",
+      message: chalk.cyan("Version Control Options:"),
+      choices: [
+        { name: "Show Current Version", value: "version" },
+        { name: "View Changelog", value: "changelog" },
+        { name: "Check for Updates", value: "update" },
+        { name: "Back to Main Menu", value: "back" },
+      ],
+    },
+  ]);
+
+  switch (versionAction) {
+    case "version":
+      await showVersion();
+      break;
+    case "changelog":
+      await showChangelog();
+      break;
+    case "update":
+      await checkForUpdates();
+      break;
+    case "back":
+      return;
+  }
+
+  console.log();
+}
+
+async function handleTerminal() {
+  console.log(chalk.blue("\n⚡ Sophia Terminal - Safe Command Execution"));
+
+  const terminalService = new TerminalService();
+
+  while (true) {
+    const { action } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "action",
+        message: chalk.cyan("What would you like to do?"),
+        choices: [
+          { name: "Execute Command", value: "execute" },
+          { name: "View Safe Commands Info", value: "info" },
+          { name: "Quick Commands", value: "quick" },
+          { name: "Back to Main Menu", value: "back" },
+        ],
+      },
+    ]);
+
+    switch (action) {
+      case "execute":
+        await executeCustomCommand(terminalService);
+        break;
+      case "info":
+        const info = TerminalService.getSafeCommandsInfo();
+        console.log(info.message);
+        break;
+      case "quick":
+        await executeQuickCommand(terminalService);
+        break;
+      case "back":
+        await terminalService.disconnect();
+        console.log(chalk.cyan("\nReturning to main menu...\n"));
+        return;
+    }
+
+    console.log();
+  }
+}
+
+async function executeCustomCommand(terminalService) {
+  const { command } = await inquirer.prompt([
+    {
+      type: "input",
+      name: "command",
+      message: chalk.green("Enter command to execute:"),
+      validate: input => (input.trim() ? true : "Please enter a command"),
+    },
+  ]);
+
+  const spinner = ora(`Executing: ${command}`).start();
+
+  try {
+    // Connect if not already connected
+    if (!terminalService.isConnected) {
+      await terminalService.connect();
+    }
+
+    const result = await terminalService.executeCommand(command.trim());
+    spinner.stop();
+
+    const formatted = TerminalService.formatCommandResult(result);
+    console.log(formatted);
+
+    if (result.success) {
+      console.log(chalk.green("Command completed successfully"));
+    } else {
+      console.log(chalk.yellow(`Command exited with code: ${result.exitCode}`));
+    }
+  } catch (error) {
+    spinner.stop();
+    console.error(chalk.red("Command failed:"), error.message);
+  }
+}
+
+async function executeQuickCommand(terminalService) {
+  const { quickCmd } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "quickCmd",
+      message: chalk.cyan("Select a quick command:"),
+      choices: [
+        { name: "System Info (uname -a)", value: "uname -a" },
+        { name: "Current Directory (pwd)", value: "pwd" },
+        { name: "Date and Time (date)", value: "date" },
+        { name: "Who Am I (whoami)", value: "whoami" },
+        { name: "Disk Usage (df -h)", value: "df -h" },
+        { name: "Memory Info (free -h)", value: "free -h" },
+        {
+          name: "Network Test (ping -c 3 google.com)",
+          value: "ping -c 3 google.com",
+        },
+        { name: "Git Status", value: "git status" },
+        { name: "Node Version", value: "node --version" },
+        { name: "NPM Version", value: "npm --version" },
+        { name: "Back to Terminal Menu", value: "back" },
+      ],
+    },
+  ]);
+
+  if (quickCmd === "back") return;
+
+  const spinner = ora(`Executing: ${quickCmd}`).start();
+
+  try {
+    // Connect if not already connected
+    if (!terminalService.isConnected) {
+      await terminalService.connect();
+    }
+
+    const result = await terminalService.executeCommand(quickCmd);
+    spinner.stop();
+
+    const formatted = TerminalService.formatCommandResult(result);
+    console.log(formatted);
+
+    if (result.success) {
+      console.log(chalk.green("Command completed successfully"));
+    } else {
+      console.log(chalk.yellow(`Command exited with code: ${result.exitCode}`));
+    }
+  } catch (error) {
+    spinner.stop();
+    console.error(chalk.red("Command failed:"), error.message);
+  }
+}
+
 async function cleanFiles() {
   const { confirmClean } = await inquirer.prompt([
     {
@@ -359,7 +715,86 @@ async function testEndpoint() {
   }
 }
 
+async function handleFilesystem() {
+  console.log(chalk.blue("\n Sophia File Explorer - Secure Filesystem Access"));
 
+  const filesystemService = new FilesystemService();
+
+  while (true) {
+    const { action } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "action",
+        message: chalk.cyan("What would you like to do?"),
+        choices: [
+          { name: "Browse Directory", value: "browse" },
+          { name: "Read File", value: "read" },
+          { name: "View Security Information", value: "security" },
+          { name: "Back to Main Menu", value: "back" },
+        ],
+      },
+    ]);
+
+    switch (action) {
+      case "browse":
+        await browseDirectory(filesystemService);
+        break;
+      case "read":
+        await readFileContent(filesystemService);
+        break;
+      case "security":
+        const fsInfo = filesystemService.getSafePathsInfo();
+        console.log(fsInfo.message);
+        break;
+      case "back":
+        await filesystemService.disconnect();
+        console.log(chalk.cyan("\nReturning to main menu...\n"));
+        return;
+    }
+
+    console.log();
+  }
+}
+
+async function browseDirectory(filesystemService) {
+  const { dirPath } = await inquirer.prompt([
+    {
+      type: "input",
+      name: "dirPath",
+      message: chalk.green("Enter directory path to browse:"),
+      default: ".",
+      validate: input =>
+        input.trim() ? true : "Please enter a directory path",
+    },
+  ]);
+
+  try {
+    const result = await filesystemService.listDirectory(dirPath.trim());
+    const formatted = FilesystemService.formatDirectoryResult(result);
+    console.log(formatted);
+  } catch (error) {
+    console.error(chalk.red("Error browsing directory:"), error.message);
+  }
+}
+
+async function readFileContent(filesystemService) {
+  const { filePath } = await inquirer.prompt([
+    {
+      type: "input",
+      name: "filePath",
+      message: chalk.green("Enter file path to read:"),
+      validate: input => (input.trim() ? true : "Please enter a file path"),
+    },
+  ]);
+
+  try {
+    const result = await filesystemService.readFile(filePath.trim());
+    const formatted = FilesystemService.formatFileResult(result);
+    console.log(formatted);
+  } catch (error) {
+    console.error(chalk.red("Error reading file:"), error.message);
+  }
+}
 
 if (process.argv.length > 2) {
   const command = process.argv[2];
@@ -370,6 +805,10 @@ if (process.argv.length > 2) {
       const chat = new SimpleChat();
       await chat.startChat();
       break;
+    case "files":
+    case "fs":
+      await handleFilesystem();
+      process.exit(0);
     case "history":
       await showHistory();
       process.exit(0);
@@ -379,6 +818,16 @@ if (process.argv.length > 2) {
         process.exit(0);
       }
       break;
+    case "--version":
+    case "-v":
+      await showVersion();
+      process.exit(0);
+    case "changelog":
+      await showChangelog();
+      process.exit(0);
+    case "update":
+      await checkForUpdates();
+      process.exit(0);
     case "--help":
     case "-h":
       displayBanner();
@@ -389,8 +838,17 @@ Sophia CLI Commands:
 Interactive Mode:
   sophia                    Start interactive mode (recommended)
 
-Chat Mode (Like Claude Code/Gemini CLI):
+Chat Mode:
   sophia chat               Start conversational chat mode
+
+Filesystem Mode:
+  sophia files              Start secure file explorer
+  sophia fs                 Start secure file explorer (short)
+
+Version Control:
+  sophia --version, -v      Show current version
+  sophia changelog          Show version history
+  sophia update             Check for updates
 
 Legacy Commands:
   sophia "prompt"           Generate mock server from prompt
@@ -401,6 +859,7 @@ Legacy Commands:
 Examples:
   sophia                    # Interactive menu
   sophia chat               # Conversational chat mode
+  sophia files              # Secure file explorer
   sophia "create a REST API for user management"
   sophia history
       `)

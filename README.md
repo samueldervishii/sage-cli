@@ -7,6 +7,8 @@ Interactive CLI tool for generating mock servers and APIs.
 - **Interactive Terminal UI** with gradient colors and emojis
 - **AI-powered code generation** for fast and accurate mock server creation
 - **Interactive Chat Mode** - conversational interface for better UX
+- **Web Search Integration** - real-time web search using Serper API via MCP
+- **Secure Filesystem Access** - browse and manage files safely via MCP tools
 - **Command History** - track all your previous prompts
 - **Configuration Management** - customize settings easily
 - **Smart Cleanup** - manage generated files efficiently
@@ -19,12 +21,7 @@ Interactive CLI tool for generating mock servers and APIs.
    ```bash
    npm install
    ```
-3. Set up your API key:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your API key
-   ```
-4. Make it globally available:
+3. Make it globally available:
    ```bash
    npm link
    ```
@@ -42,6 +39,8 @@ sophia
 This opens the interactive terminal where you can:
 
 - Chat to generate mock servers
+- Search the web for information
+- Browse and manage files securely
 - Browse command history
 - Manage configuration
 - Clean generated files
@@ -57,6 +56,9 @@ sophia "create a REST API for user management with CRUD operations"
 
 # View command history
 sophia history
+
+# Access file explorer
+sophia files
 
 # Clean all generated files
 sophia clean --all
@@ -78,15 +80,6 @@ Sophia uses a `.sophiarc.json` file for configuration. You can manage it through
 }
 ```
 
-## Environment Variables
-
-Create a `.env` file with your API configuration:
-
-```bash
-# Required: API Key
-API_KEY=your_api_key_here
-```
-
 ## Examples
 
 ### Generate a Simple API
@@ -101,6 +94,36 @@ sophia "create a GET /users endpoint that returns a list of users with id, name,
 sophia "build a REST API for a blog with posts, comments, and users. Include CRUD operations for each resource"
 ```
 
+## MCP Tools Integration
+
+Sophia leverages the **Model Context Protocol (MCP)** to provide extended capabilities through secure tool integrations:
+
+### Web Search Tool
+
+- **Provider**: Serper API via `serper-search-scrape-mcp-server`
+- **Features**: Real-time web search with intelligent query processing
+- **Setup**: Add `SERPER_API_KEY` to your `.env` file (get free key from [serper.dev](https://serper.dev/api-key))
+- **Usage**: Chat naturally - Sophia detects when web search is needed
+- **Example**: "search for the latest React 19 features"
+
+### Filesystem Tool
+
+- **Provider**: `@modelcontextprotocol/server-filesystem`
+- **Features**: Secure file and directory operations with built-in safety restrictions
+- **Security**: Protects system files, SSH keys, and sensitive directories
+- **Allowed Areas**: Home directories, project folders, temp files, web content
+- **Usage**: Access via "File Explorer (Filesystem)" in interactive mode or `sophia files`
+- **Examples**:
+  - "show me the package.json file"
+  - "list files in the current directory"
+  - "read the contents of src/components"
+
+### Security Features
+
+- **Path Validation**: Prevents access to system-critical files and directories
+- **SSH Key Protection**: Blocks access to `.ssh/`, `.gnupg/` directories
+- **System File Protection**: Restricts `/etc/passwd`, `/boot/`, `/sys/` and other sensitive areas
+- **User Directory Safety**: Allows development work while maintaining security boundaries
 
 ## File Structure
 
@@ -109,8 +132,12 @@ sophia-cli/
 ├── bin/
 │   └── sophia.mjs          # Main CLI entry point
 ├── lib/
-│   └── generate.mjs        # Code generation logic
+│   ├── generate.mjs        # Code generation logic
+│   ├── simple-chat.mjs     # Chat mode with MCP integration
+│   ├── search-service.mjs  # Web search MCP client
+│   └── filesystem-service.mjs # Filesystem MCP client
 ├── generated/              # Generated mock servers
+├── conversations/          # Chat session history
 ├── logs/
 │   └── history.json        # Command history
 ├── .env                    # Environment variables
@@ -147,13 +174,21 @@ sophia-cli/
 
 ## Troubleshooting
 
-### "API_KEY" Error
+### Web Search Not Working
 
-Make sure your `.env` file contains a valid API key:
+If web search functionality isn't working:
 
-```bash
-API_KEY=your_actual_api_key_here
-```
+1. Check if `SERPER_API_KEY` is set in your `.env` file
+2. Get a free API key from [serper.dev](https://serper.dev/api-key)
+3. The MCP server will be installed automatically on first use
+
+### Filesystem Access Issues
+
+If file operations aren't working:
+
+1. The filesystem MCP server installs automatically
+2. Check console for permission errors
+3. Remember that system files are protected for security
 
 ### Permission Denied
 
