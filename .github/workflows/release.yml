@@ -89,17 +89,26 @@ jobs:
             if [[ -n "$commit" ]]; then
               lower_commit=$(echo "$commit" | tr '[:upper:]' '[:lower:]')
               
-              if [[ $lower_commit =~ ^feat:|add|implement ]]; then
+              if [[ $lower_commit =~ ^feat:|^add\s|^implement\s ]]; then
                 clean_msg=$(echo "$commit" | sed 's/^feat: *//i' | sed 's/^add */Add /i' | sed 's/^implement */Implement /i')
+                # Capitalize first letter and ensure proper grammar
+                clean_msg=$(echo "$clean_msg" | sed 's/\<add ing\>/adding/gi' | sed 's/\<fix ing\>/fixing/gi')
+                clean_msg="$(tr '[:lower:]' '[:upper:]' <<< ${clean_msg:0:1})${clean_msg:1}"
                 FEATURES="${FEATURES}- ${clean_msg}\n"
-              elif [[ $lower_commit =~ ^fix:|fix|bug ]]; then
+              elif [[ $lower_commit =~ ^fix:|^fix\s|bug ]]; then
                 clean_msg=$(echo "$commit" | sed 's/^fix: *//i' | sed 's/^fix */Fix /i')
+                clean_msg=$(echo "$clean_msg" | sed 's/\<add ing\>/adding/gi' | sed 's/\<fix ing\>/fixing/gi')
+                clean_msg="$(tr '[:lower:]' '[:upper:]' <<< ${clean_msg:0:1})${clean_msg:1}"
                 FIXES="${FIXES}- ${clean_msg}\n"
               elif [[ $lower_commit =~ ^chore: ]] && [[ ! $lower_commit =~ "bump version" ]]; then
                 clean_msg=$(echo "$commit" | sed 's/^chore: *//i')
+                clean_msg=$(echo "$clean_msg" | sed 's/\<add ing\>/adding/gi' | sed 's/\<fix ing\>/fixing/gi')
+                clean_msg="$(tr '[:lower:]' '[:upper:]' <<< ${clean_msg:0:1})${clean_msg:1}"
                 IMPROVEMENTS="${IMPROVEMENTS}- ${clean_msg}\n"
               elif [[ ! $lower_commit =~ "bump version" ]] && [[ ! $lower_commit =~ "merge" ]]; then
-                OTHERS="${OTHERS}- ${commit}\n"
+                clean_msg=$(echo "$commit" | sed 's/\<add ing\>/adding/gi' | sed 's/\<fix ing\>/fixing/gi')
+                clean_msg="$(tr '[:lower:]' '[:upper:]' <<< ${clean_msg:0:1})${clean_msg:1}"
+                OTHERS="${OTHERS}- ${clean_msg}\n"
               fi
             fi
           done <<< "$COMMITS"

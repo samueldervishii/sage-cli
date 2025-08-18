@@ -204,7 +204,11 @@ function parseChangelogFromBody(body) {
     trimmed = trimmed
       .replace(/\\n/g, " ") // Remove escaped newlines
       .replace(/^["'`]+|["'`]+$/g, "") // Remove surrounding quotes/backticks
+      .replace(/^#+\s*/, "") // Remove markdown headers
+      .replace(/^\*+\s*/, "") // Remove asterisk bullets
+      .replace(/^-+\s*/, "") // Remove dash bullets  
       .replace(/\s+/g, " ") // Collapse multiple spaces
+      .replace(/^(New Features|Bug Fixes|Improvements|Changes)$/i, "") // Remove section headers
       .trim();
 
     // Look for bullet points or dashes
@@ -219,15 +223,19 @@ function parseChangelogFromBody(body) {
     }
     // Look for meaningful content (not headers or metadata)
     else if (
-      trimmed.length > 10 &&
+      trimmed.length > 5 &&
       trimmed.length < 200 &&
       !trimmed.startsWith("#") &&
       !trimmed.startsWith("**") &&
+      !trimmed.startsWith("```") &&
       !trimmed.toLowerCase().includes("what's changed") &&
       !trimmed.toLowerCase().includes("bash -c") &&
-      !trimmed.match(/^\w+:$/)
+      !trimmed.toLowerCase().includes("new features") &&
+      !trimmed.toLowerCase().includes("bug fixes") &&
+      !trimmed.toLowerCase().includes("improvements") &&
+      !trimmed.match(/^\w+:$/) && // Skip section headers like "Features:"
+      !trimmed.match(/^".*"$/) // Skip quoted strings
     ) {
-      // Skip section headers like "Features:"
       changes.push(trimmed);
     }
   }
