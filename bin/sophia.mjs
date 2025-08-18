@@ -32,7 +32,7 @@ function reloadEnvVars() {
   // Reload from install location
   dotenv.config({
     path: path.join(os.homedir(), ".local", "bin", "sophia-cli", ".env"),
-    override: true
+    override: true,
   });
 }
 
@@ -186,52 +186,62 @@ function parseChangelogFromBody(body) {
 
   for (const line of lines) {
     let trimmed = line.trim();
-    
+
     // Skip empty lines, code blocks, headers, and URLs
-    if (!trimmed || 
-        trimmed.startsWith('```') || 
-        trimmed.startsWith('##') || 
-        trimmed.startsWith('###') ||
-        trimmed.includes('http') ||
-        trimmed.toLowerCase().includes('installation') ||
-        trimmed.toLowerCase().includes('full changelog')) {
+    if (
+      !trimmed ||
+      trimmed.startsWith("```") ||
+      trimmed.startsWith("##") ||
+      trimmed.startsWith("###") ||
+      trimmed.includes("http") ||
+      trimmed.toLowerCase().includes("installation") ||
+      trimmed.toLowerCase().includes("full changelog")
+    ) {
       continue;
     }
-    
+
     // Clean up escaped characters and malformed markdown
     trimmed = trimmed
-      .replace(/\\n/g, ' ')           // Remove escaped newlines
-      .replace(/^["'`]+|["'`]+$/g, '') // Remove surrounding quotes/backticks
-      .replace(/\s+/g, ' ')           // Collapse multiple spaces
+      .replace(/\\n/g, " ") // Remove escaped newlines
+      .replace(/^["'`]+|["'`]+$/g, "") // Remove surrounding quotes/backticks
+      .replace(/\s+/g, " ") // Collapse multiple spaces
       .trim();
-    
+
     // Look for bullet points or dashes
     if (trimmed.match(/^[-*•]\s+/) || trimmed.match(/^\d+\.\s+/)) {
-      const change = trimmed.replace(/^[-*•]\s+/, '').replace(/^\d+\.\s+/, '').trim();
+      const change = trimmed
+        .replace(/^[-*•]\s+/, "")
+        .replace(/^\d+\.\s+/, "")
+        .trim();
       if (change && change.length > 3 && change.length < 200) {
         changes.push(change);
       }
     }
     // Look for meaningful content (not headers or metadata)
-    else if (trimmed.length > 10 && 
-             trimmed.length < 200 &&
-             !trimmed.startsWith('#') && 
-             !trimmed.startsWith('**') &&
-             !trimmed.toLowerCase().includes("what's changed") &&
-             !trimmed.toLowerCase().includes("bash -c") &&
-             !trimmed.match(/^\w+:$/)) { // Skip section headers like "Features:"
+    else if (
+      trimmed.length > 10 &&
+      trimmed.length < 200 &&
+      !trimmed.startsWith("#") &&
+      !trimmed.startsWith("**") &&
+      !trimmed.toLowerCase().includes("what's changed") &&
+      !trimmed.toLowerCase().includes("bash -c") &&
+      !trimmed.match(/^\w+:$/)
+    ) {
+      // Skip section headers like "Features:"
       changes.push(trimmed);
     }
   }
-  
+
   // Clean up and deduplicate changes
   const cleanChanges = changes
     .filter(change => change && change.trim().length > 3)
     .map(change => change.charAt(0).toUpperCase() + change.slice(1)) // Capitalize first letter
     .filter((change, index, array) => array.indexOf(change) === index) // Remove duplicates
     .slice(0, 8); // Limit to 8 items
-  
-  return cleanChanges.length > 0 ? cleanChanges : ["Release notes not available"];
+
+  return cleanChanges.length > 0
+    ? cleanChanges
+    : ["Release notes not available"];
 }
 
 async function showChangelog() {
@@ -511,7 +521,7 @@ async function startInteractiveMode() {
   if (!hasKeys) {
     return;
   }
-  
+
   // Reload environment variables after setup in case .env was created
   reloadEnvVars();
 
