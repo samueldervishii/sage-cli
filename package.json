@@ -1,25 +1,25 @@
 {
-  "name": "sophia-cli",
+  "name": "sage-cli",
   "version": "0.0.6-beta",
-  "description": "Sophia - Interactive AI CLI by Samuel",
+  "description": "Sage - Interactive AI CLI by Samuel",
   "main": "index.js",
   "bin": {
-    "sophia": "./bin/sophia.mjs"
+    "sage": "./bin/sage.mjs"
   },
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/samueldervishii/sophia-cli.git"
+    "url": "git+https://github.com/samueldervishii/sage-cli.git"
   },
-  "homepage": "https://github.com/samueldervishii/sophia-cli#readme",
+  "homepage": "https://github.com/samueldervishii/sage-cli#readme",
   "bugs": {
-    "url": "https://github.com/samueldervishii/sophia-cli/issues"
+    "url": "https://github.com/samueldervishii/sage-cli/issues"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md,mjs}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md,mjs}\"",
-    "start": "node bin/sophia.mjs"
+    "start": "node bin/sage.mjs"
   },
   "keywords": [
     "cli",
@@ -28,7 +28,7 @@
     "chatbot",
     "terminal",
     "interactive",
-    "sophia"
+    "sage"
   ],
   "author": "Samuel",
   "license": "ISC",

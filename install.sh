@@ -10,8 +10,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Project info
-REPO="samueldervishii/sophia-cli"
-BINARY_NAME="sophia"
+REPO="samueldervishii/sage-cli"
+BINARY_NAME="sage"
 
 # Function to print colored output
 print_status() {
@@ -76,19 +76,19 @@ check_node() {
 
 # Function to install from GitHub
 install_from_github() {
-    print_status "Installing Sophia CLI from GitHub..."
+    print_status "Installing Sage CLI from GitHub..."
     
     local temp_dir=$(mktemp -d)
     local install_dir="$HOME/.local/bin"
-    local sophia_dir="$install_dir/sophia-cli"
-    
+    local sage_dir="$install_dir/sage-cli"
+
     # Create install directory if it doesn't exist
     mkdir -p "$install_dir"
     
     # Remove existing installation if it exists
-    if [ -d "$sophia_dir" ]; then
+    if [ -d "$sage_dir" ]; then
         print_status "Removing existing installation..."
-        rm -rf "$sophia_dir"
+        rm -rf "$sage_dir"
     fi
     
     # Download the repository
@@ -103,7 +103,7 @@ install_from_github() {
     fi
     
     # Navigate to extracted directory
-    cd "$temp_dir/sophia-cli-main"
+    cd "$temp_dir/sage-cli-main"
     
     # Install dependencies
     print_status "Installing dependencies..."
@@ -115,13 +115,13 @@ install_from_github() {
     fi
     
     # Copy to install directory
-    print_status "Installing to $sophia_dir..."
-    cp -r . "$sophia_dir"
-    
+    print_status "Installing to $sage_dir..."
+    cp -r . "$sage_dir"
+
     # Create executable wrapper
     cat > "$install_dir/$BINARY_NAME" << EOF
 #!/bin/bash
-exec node "$sophia_dir/bin/sophia.mjs" "\$@"
+exec node "$sage_dir/bin/sage.mjs" "\$@"
 EOF
     
     chmod +x "$install_dir/$BINARY_NAME"
@@ -139,7 +139,7 @@ EOF
         echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
         echo
         print_status "Then restart your terminal or run: source ~/.bashrc"
-        print_status "Alternatively, you can run sophia with: $install_dir/$BINARY_NAME"
+        print_status "Alternatively, you can run sage with: $install_dir/$BINARY_NAME"
     fi
 }
 
@@ -194,7 +194,7 @@ setup_path() {
 
 # Main installation function
 main() {
-    print_status "Installing Sophia CLI..."
+    print_status "Installing Sage CLI..."
     print_status "Platform: $(get_platform)"
     
     # Check prerequisites
@@ -208,7 +208,7 @@ main() {
         setup_path
         print_success "Installation completed successfully!"
         print_status "Run '$BINARY_NAME setup' to configure API keys"
-        print_status "Then run '$BINARY_NAME' to start using Sophia CLI"
+        print_status "Then run '$BINARY_NAME' to start using Sage CLI"
     else
         print_error "Installation verification failed. Please check the installation manually."
         exit 1

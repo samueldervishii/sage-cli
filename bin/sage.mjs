@@ -6,7 +6,7 @@ import path from "path";
 
 dotenv.config();
 dotenv.config({
-  path: path.join(os.homedir(), ".local", "bin", "sophia-cli", ".env"),
+  path: path.join(os.homedir(), ".local", "bin", "sage-cli", ".env"),
 });
 
 import { fileURLToPath } from "url";
@@ -31,7 +31,7 @@ function reloadEnvVars() {
   dotenv.config({ override: true });
   // Reload from install location
   dotenv.config({
-    path: path.join(os.homedir(), ".local", "bin", "sophia-cli", ".env"),
+    path: path.join(os.homedir(), ".local", "bin", "sage-cli", ".env"),
     override: true,
   });
 }
@@ -45,11 +45,11 @@ async function displayBanner() {
     "#FFEAA7",
   ])(
     `
-   ███████  ██████  ██████  ██   ██ ██  █████  
-   ██      ██    ██ ██   ██ ██   ██ ██ ██   ██ 
-   ███████ ██    ██ ██████  ███████ ██ ███████ 
-        ██ ██    ██ ██      ██   ██ ██ ██   ██ 
-   ███████  ██████  ██      ██   ██ ██ ██   ██ 
+   ███████  █████   ██████  ███████ 
+   ██      ██   ██ ██       ██      
+   ███████ ███████ ██   ███ █████   
+        ██ ██   ██ ██    ██ ██      
+   ███████ ██   ██  ██████  ███████ 
    `
   );
   console.log(banner);
@@ -164,7 +164,7 @@ async function fetchGitHubReleases() {
       timeout: 5000,
       headers: {
         Accept: "application/vnd.github.v3+json",
-        "User-Agent": "sophia-cli",
+        "User-Agent": "sage-cli",
       },
     });
 
@@ -253,7 +253,7 @@ function parseChangelogFromBody(body) {
 }
 
 async function showChangelog() {
-  console.log(chalk.cyan("\n Sophia CLI Changelog\n"));
+  console.log(chalk.cyan("\n Sage CLI Changelog\n"));
 
   const spinner = ora("Fetching changelog from GitHub...").start();
 
@@ -288,7 +288,7 @@ async function showChangelog() {
       console.log(chalk.gray(`... and ${releases.length - 10} more releases`));
       console.log(
         chalk.gray(
-          `View full changelog: https://github.com/samueldervishii/sophia-cli/releases`
+          `View full changelog: https://github.com/samueldervishii/sage-cli/releases`
         )
       );
     }
@@ -351,7 +351,7 @@ async function checkForUpdates(silent = false) {
         console.log(chalk.gray(`Current: ${currentVersion}`));
         console.log(chalk.cyan(`Latest: ${latestVersion}`));
         console.log(chalk.white("\nTo update, run:"));
-        console.log(chalk.cyan(`  sophia update`));
+        console.log(chalk.cyan(`  sage update`));
 
         if (updateInfo.releaseNotes.length > 0) {
           console.log(chalk.white("\nWhat's new:"));
@@ -381,7 +381,7 @@ async function checkForUpdates(silent = false) {
 }
 
 async function performUpdate() {
-  console.log(chalk.cyan("\nSophia CLI Update\n"));
+  console.log(chalk.cyan("\nSage CLI Update\n"));
 
   try {
     const updateInfo = await checkForUpdates(true);
@@ -414,8 +414,8 @@ async function performUpdate() {
     console.log(chalk.blue("\nDownloading and installing update..."));
 
     const installScriptUrl =
-      "https://raw.githubusercontent.com/samueldervishii/sophia-cli/main/install.sh";
-    const tempDir = path.join(os.tmpdir(), "sophia-update");
+      "https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.sh";
+    const tempDir = path.join(os.tmpdir(), "sage-update");
     const scriptPath = path.join(tempDir, "install.sh");
 
     await fs.ensureDir(tempDir);
@@ -426,7 +426,7 @@ async function performUpdate() {
       const response = await axios.get(installScriptUrl, {
         timeout: 10000,
         headers: {
-          "User-Agent": "sophia-cli-updater",
+          "User-Agent": "sage-cli-updater",
         },
       });
 
@@ -440,13 +440,13 @@ async function performUpdate() {
 
       console.log(chalk.blue("Running installation script..."));
       console.log(
-        chalk.gray("This will update Sophia CLI to the latest version.")
+        chalk.gray("This will update Sage CLI to the latest version.")
       );
 
       await new Promise((resolve, reject) => {
         const child = spawn("bash", [scriptPath], {
           stdio: "inherit",
-          env: { ...process.env, SOPHIA_UPDATE: "true" },
+          env: { ...process.env, SAGE_UPDATE: "true" },
         });
 
         child.on("close", code => {
@@ -464,7 +464,7 @@ async function performUpdate() {
 
       console.log(chalk.green("\nUpdate completed successfully!"));
       console.log(
-        chalk.cyan(`Sophia CLI has been updated to v${updateInfo.latest}`)
+        chalk.cyan(`Sage CLI has been updated to v${updateInfo.latest}`)
       );
 
       if (updateInfo.releaseNotes.length > 0) {
@@ -489,7 +489,7 @@ async function performUpdate() {
       console.log(chalk.cyan("Run this command to update manually:"));
       console.log(
         chalk.white(
-          `bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sophia-cli/main/install.sh)"`
+          `bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.sh)"`
         )
       );
     }
@@ -498,7 +498,7 @@ async function performUpdate() {
     console.log(chalk.gray("\nYou can try updating manually with:"));
     console.log(
       chalk.cyan(
-        'bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sophia-cli/main/install.sh)"'
+        'bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.sh)"'
       )
     );
   }
@@ -541,7 +541,7 @@ async function startInteractiveMode() {
         chalk.cyan(`v${updateInfo.latest}`)
       );
       console.log(
-        chalk.gray(`Run 'sophia update' to update from v${updateInfo.current}`)
+        chalk.gray(`Run 'sage update' to update from v${updateInfo.current}`)
       );
       console.log();
     }
@@ -598,7 +598,7 @@ async function startInteractiveMode() {
         break;
       case "exit":
         console.log(
-          chalk.magenta("\nThanks for using Sophia! See you next time!")
+          chalk.magenta("\nThanks for using Sage! See you next time!")
         );
         process.exit(0);
     }
@@ -608,7 +608,7 @@ async function startInteractiveMode() {
 }
 
 async function startConversationalChat() {
-  console.log(chalk.blue("\nStarting Sophia Chat Mode..."));
+  console.log(chalk.blue("\nStarting Sage Chat Mode..."));
 
   try {
     const chat = new SimpleChat();
@@ -642,7 +642,7 @@ async function handleChat() {
   ]);
 
   const spinner = ora({
-    text: chalk.blue("Sophia is thinking..."),
+    text: chalk.blue("Sage is thinking..."),
     spinner: "dots12",
   }).start();
 
@@ -757,7 +757,7 @@ async function showHistory() {
 }
 
 async function handleConfig() {
-  const configPath = path.join(__dirname, "../.sophiarc.json");
+  const configPath = path.join(__dirname, "../.sage.json");
 
   const { configAction } = await inquirer.prompt([
     {
@@ -832,7 +832,7 @@ async function handleVersionControl() {
 }
 
 async function handleTerminal() {
-  console.log(chalk.blue("\n⚡ Sophia Terminal - Safe Command Execution"));
+  console.log(chalk.blue("\n⚡ Sage Terminal - Safe Command Execution"));
 
   const terminalService = new TerminalService();
 
@@ -1024,7 +1024,7 @@ async function testEndpoint() {
 }
 
 async function handleFilesystem() {
-  console.log(chalk.blue("\n Sophia File Explorer - Secure Filesystem Access"));
+  console.log(chalk.blue("\n Sage File Explorer - Secure Filesystem Access"));
 
   const filesystemService = new FilesystemService();
 
@@ -1109,7 +1109,7 @@ if (process.argv.length > 2) {
 
   switch (command) {
     case "chat":
-      console.log(chalk.blue("Starting Sophia Chat Mode..."));
+      console.log(chalk.blue("Starting Sage Chat Mode..."));
       const chat = new SimpleChat();
       await chat.startChat();
       break;
@@ -1146,38 +1146,38 @@ if (process.argv.length > 2) {
       await displayBanner();
       console.log(
         chalk.cyan(`
-Sophia CLI Commands:
+Sage CLI Commands:
 
 Interactive Mode:
-  sophia                    Start interactive mode (recommended)
+  sage                    Start interactive mode (recommended)
 
 Chat Mode:
-  sophia chat               Start conversational chat mode
+  sage chat               Start conversational chat mode
 
 Filesystem Mode:
-  sophia files              Start secure file explorer
-  sophia fs                 Start secure file explorer (short)
+  sage files              Start secure file explorer
+  sage fs                 Start secure file explorer (short)
 
 Configuration:
-  sophia setup              Run setup wizard for API keys
+  sage setup              Run setup wizard for API keys
   
 Version Control:
-  sophia --version, -v      Show current version
-  sophia changelog          Show version history
-  sophia update             Update to latest version
+  sage --version, -v      Show current version
+  sage changelog          Show version history
+  sage update             Update to latest version
 
 Legacy Commands:
-  sophia "prompt"           Generate mock server from prompt
-  sophia history            Show command history
-  sophia clean --all        Clean all generated files
-  sophia --help             Show this help
+  sage "prompt"           Generate mock server from prompt
+  sage history            Show command history
+  sage clean --all        Clean all generated files
+  sage --help             Show this help
 
 Examples:
-  sophia                    # Interactive menu
-  sophia chat               # Conversational chat mode
-  sophia files              # Secure file explorer
-  sophia "create a REST API for user management"
-  sophia history
+  sage                    # Interactive menu
+  sage chat               # Conversational chat mode
+  sage files              # Secure file explorer
+  sage "create a REST API for user management"
+  sage history
       `)
       );
       process.exit(0);

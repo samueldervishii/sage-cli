@@ -1,4 +1,4 @@
-# Sophia CLI
+# Sage CLI
 
 Interactive CLI tool for generating mock servers and APIs.
 
@@ -18,17 +18,17 @@ Interactive CLI tool for generating mock servers and APIs.
 
 ### Quick Install (Recommended)
 
-Install Sophia CLI with a single command:
+Install Sage CLI with a single command:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sophia-cli/main/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.sh)"
 ```
 
 This will:
 
 - Check Node.js requirements (v14+)
-- Download and install Sophia CLI from GitHub
-- Set up the `sophia` command globally
+- Download and install Sage CLI from GitHub
+- Set up the `sage` command globally
 - Optionally add to your PATH
 
 ### Manual Installation
@@ -56,7 +56,7 @@ This will:
 Simply run:
 
 ```bash
-sophia
+sage
 ```
 
 This opens the interactive terminal where you can:
@@ -75,24 +75,24 @@ For quick one-off commands:
 
 ```bash
 # Generate a mock server
-sophia "create a REST API for user management with CRUD operations"
+sage "create a REST API for user management with CRUD operations"
 
 # View command history
-sophia history
+sage history
 
 # Access file explorer
-sophia files
+sage files
 
 # Clean all generated files
-sophia clean --all
+sage clean --all
 
 # Show help
-sophia --help
+sage --help
 ```
 
 ## Configuration
 
-Sophia uses a `.sophiarc.json` file for configuration. You can manage it through the interactive interface or manually:
+sage uses a `.sage.json` file for configuration. You can manage it through the interactive interface or manually:
 
 ```json
 {
@@ -108,25 +108,25 @@ Sophia uses a `.sophiarc.json` file for configuration. You can manage it through
 ### Generate a Simple API
 
 ```bash
-sophia "create a GET /users endpoint that returns a list of users with id, name, and email"
+sage "create a GET /users endpoint that returns a list of users with id, name, and email"
 ```
 
 ### Create a Complex Mock Server
 
 ```bash
-sophia "build a REST API for a blog with posts, comments, and users. Include CRUD operations for each resource"
+sage "build a REST API for a blog with posts, comments, and users. Include CRUD operations for each resource"
 ```
 
 ## MCP Tools Integration
 
-Sophia leverages the **Model Context Protocol (MCP)** to provide extended capabilities through secure tool integrations:
+Sage leverages the **Model Context Protocol (MCP)** to provide extended capabilities through secure tool integrations:
 
 ### Web Search Tool
 
 - **Provider**: Serper API via `serper-search-scrape-mcp-server`
 - **Features**: Real-time web search with intelligent query processing
 - **Setup**: Add `SERPER_API_KEY` to your `.env` file (get free key from [serper.dev](https://serper.dev/api-key))
-- **Usage**: Chat naturally - Sophia detects when web search is needed
+- **Usage**: Chat naturally - Sage detects when web search is needed
 - **Example**: "search for the latest React 19 features"
 
 ### Filesystem Tool
@@ -135,7 +135,7 @@ Sophia leverages the **Model Context Protocol (MCP)** to provide extended capabi
 - **Features**: Secure file and directory operations with built-in safety restrictions
 - **Security**: Protects system files, SSH keys, and sensitive directories
 - **Allowed Areas**: Home directories, project folders, temp files, web content
-- **Usage**: Access via "File Explorer (Filesystem)" in interactive mode or `sophia files`
+- **Usage**: Access via "File Explorer (Filesystem)" in interactive mode or `sage files`
 - **Examples**:
   - "show me the package.json file"
   - "list files in the current directory"
@@ -151,9 +151,9 @@ Sophia leverages the **Model Context Protocol (MCP)** to provide extended capabi
 ## File Structure
 
 ```
-sophia-cli/
+sage-cli/
 ├── bin/
-│   └── sophia.mjs          # Main CLI entry point
+│   └── sage.mjs          # Main CLI entry point
 ├── lib/
 │   ├── generate.mjs        # Code generation logic
 │   ├── simple-chat.mjs     # Chat mode with MCP integration
@@ -164,7 +164,7 @@ sophia-cli/
 ├── logs/
 │   └── history.json        # Command history
 ├── .env                    # Environment variables
-├── .sophiarc.json         # Configuration file
+├── .sage.json         # Configuration file
 └── package.json
 ```
 
@@ -218,7 +218,7 @@ If file operations aren't working:
 If you get permission errors, try:
 
 ```bash
-chmod +x bin/sophia.mjs
+chmod +x bin/sage.mjs
 ```
 
 ### Dependencies Issues
