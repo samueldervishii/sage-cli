@@ -207,7 +207,8 @@ main() {
     if verify_installation; then
         setup_path
         print_success "Installation completed successfully!"
-        print_status "Run '$BINARY_NAME --help' to get started"
+        print_status "Run '$BINARY_NAME setup' to configure API keys"
+        print_status "Then run '$BINARY_NAME' to start using Sophia CLI"
     else
         print_error "Installation verification failed. Please check the installation manually."
         exit 1

@@ -25,6 +25,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sophia-c
 ```
 
 This will:
+
 - Check Node.js requirements (v14+)
 - Download and install Sophia CLI from GitHub
 - Set up the `sophia` command globally

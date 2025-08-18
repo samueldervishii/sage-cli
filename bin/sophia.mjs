@@ -15,6 +15,7 @@ import axios from "axios";
 import SimpleChat from "../lib/simple-chat.mjs";
 import FilesystemService from "../lib/filesystem-service.mjs";
 import TerminalService from "../lib/terminal-service.mjs";
+import SetupWizard from "../lib/setup-wizard.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,7 +40,7 @@ function displayBanner() {
 
   const subtitle = chalk.cyan("Your Interactive AI Assistant");
   const author = `${chalk.cyan("Created by")} ${chalk.italic.bold.blueBright(`\u001b]8;;https://github.com/samueldervishii\u0007Samuel\u001b]8;;\u0007`)}`;
-  const version = chalk.underline.cyan("Version: 1.3.0");
+  const version = chalk.underline.cyan("Version: 0.0.1-beta");
 
   const padding = "   ";
   console.log(
@@ -238,6 +239,13 @@ function compareVersions(version1, version2) {
 async function startInteractiveMode() {
   displayBanner();
   console.log();
+
+  // Check for API keys on startup
+  const setupWizard = new SetupWizard();
+  const hasKeys = await setupWizard.quickSetup();
+  if (!hasKeys) {
+    return; // Exit if user declined setup
+  }
 
   while (true) {
     const { action } = await inquirer.prompt([
@@ -828,6 +836,10 @@ if (process.argv.length > 2) {
     case "update":
       await checkForUpdates();
       process.exit(0);
+    case "setup":
+      const setupWizard = new SetupWizard();
+      await setupWizard.run();
+      process.exit(0);
     case "--help":
     case "-h":
       displayBanner();
@@ -845,6 +857,9 @@ Filesystem Mode:
   sophia files              Start secure file explorer
   sophia fs                 Start secure file explorer (short)
 
+Configuration:
+  sophia setup              Run setup wizard for API keys
+  
 Version Control:
   sophia --version, -v      Show current version
   sophia changelog          Show version history
