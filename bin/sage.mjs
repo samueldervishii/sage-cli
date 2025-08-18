@@ -510,8 +510,11 @@ async function performUpdate() {
 }
 
 function compareVersions(version1, version2) {
-  const v1Parts = version1.split(".").map(Number);
-  const v2Parts = version2.split(".").map(Number);
+  const cleanVersion1 = version1.replace(/-.*$/, "");
+  const cleanVersion2 = version2.replace(/-.*$/, "");
+
+  const v1Parts = cleanVersion1.split(".").map(Number);
+  const v2Parts = cleanVersion2.split(".").map(Number);
 
   const maxLength = Math.max(v1Parts.length, v2Parts.length);
   while (v1Parts.length < maxLength) v1Parts.push(0);
