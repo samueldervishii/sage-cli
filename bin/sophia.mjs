@@ -25,7 +25,7 @@ import SetupWizard from "../lib/setup-wizard.mjs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function displayBanner() {
+async function displayBanner() {
   const banner = gradient([
     "#FF6B6B",
     "#4ECDC4",
@@ -43,9 +43,19 @@ function displayBanner() {
   );
   console.log(banner);
 
+  const packagePath = path.join(__dirname, "../package.json");
+  let currentVersion = "0.0.1-beta"; // fallback
+  try {
+    const packageData = await fs.readJson(packagePath);
+    currentVersion = packageData.version;
+  } catch (error) {
+    console.log(chalk.yellow("Falling back to manual version..."));
+    console.log("Something went wrong: ", error.message);
+  }
+
   const subtitle = chalk.cyan("Your Interactive AI Assistant");
   const author = `${chalk.cyan("Created by")} ${chalk.italic.bold.blueBright(`\u001b]8;;https://github.com/samueldervishii\u0007Samuel\u001b]8;;\u0007`)}`;
-  const version = chalk.underline.cyan("Version: 0.0.1-beta");
+  const version = chalk.underline.cyan(`Version: ${currentVersion}`);
 
   const padding = "   ";
   console.log(
@@ -62,7 +72,7 @@ async function showVersion() {
   const packagePath = path.join(__dirname, "../package.json");
   const packageData = await fs.readJson(packagePath);
 
-  displayBanner();
+  await displayBanner();
   console.log();
   console.log(chalk.cyan(`Version: ${packageData.version}`));
   console.log(chalk.gray(`Node.js: ${process.version}`));
@@ -255,15 +265,11 @@ async function showChangelog() {
   } catch (error) {
     spinner.stop();
     console.error(chalk.red("Error fetching changelog:"), error.message);
-    console.log(chalk.gray("Falling back to manual changelog..."));
-
-    console.log(chalk.green.bold("v0.0.2-beta") + chalk.gray(" (Latest)"));
-    console.log("  • Interactive AI CLI assistant");
-    console.log("  • Chat mode with conversation persistence");
-    console.log("  • Secure file system access");
-    console.log("  • Terminal command execution");
-    console.log("  • Web search integration");
-    console.log();
+    console.log(
+      chalk.gray(
+        "Unable to fetch changelog from GitHub. Please check your internet connection."
+      )
+    );
   }
 }
 
@@ -485,7 +491,7 @@ function compareVersions(version1, version2) {
 }
 
 async function startInteractiveMode() {
-  displayBanner();
+  await displayBanner();
   console.log();
 
   const setupWizard = new SetupWizard();
@@ -1103,7 +1109,7 @@ if (process.argv.length > 2) {
       process.exit(0);
     case "--help":
     case "-h":
-      displayBanner();
+      await displayBanner();
       console.log(
         chalk.cyan(`
 Sophia CLI Commands:

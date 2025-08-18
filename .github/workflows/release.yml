@@ -69,6 +69,62 @@ jobs:
           git add package.json
           git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
 
+      - name: Generate Release Notes
+        id: generate_notes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: commits } = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // Last 7 days
+              per_page: 50
+            });
+            
+            const features = [];
+            const fixes = [];
+            const improvements = [];
+            const others = [];
+            
+            commits.forEach(commit => {
+              const message = commit.commit.message.toLowerCase();
+              const firstLine = commit.commit.message.split('\n')[0];
+              
+              if (message.startsWith('feat:') || message.includes('add') || message.includes('implement')) {
+                features.push(`- ${firstLine.replace(/^feat:\s*/, '').replace(/^add\s*/, 'Add ').replace(/^implement\s*/, 'Implement ')}`);
+              } else if (message.startsWith('fix:') || message.includes('fix') || message.includes('bug')) {
+                fixes.push(`- ${firstLine.replace(/^fix:\s*/, '').replace(/^fix\s*/, 'Fix ')}`);
+              } else if (message.startsWith('chore:') && !message.includes('bump version')) {
+                improvements.push(`- ${firstLine.replace(/^chore:\s*/, '')}`);
+              } else if (!message.includes('bump version') && !message.includes('merge')) {
+                others.push(`- ${firstLine}`);
+              }
+            });
+            
+            let releaseNotes = '';
+            
+            if (features.length > 0) {
+              releaseNotes += '### New Features\n' + features.slice(0, 5).join('\n') + '\n\n';
+            }
+            
+            if (fixes.length > 0) {
+              releaseNotes += '### Bug Fixes\n' + fixes.slice(0, 5).join('\n') + '\n\n';
+            }
+            
+            if (improvements.length > 0) {
+              releaseNotes += '### Improvements\n' + improvements.slice(0, 3).join('\n') + '\n\n';
+            }
+            
+            if (others.length > 0 && (features.length + fixes.length + improvements.length) < 3) {
+              releaseNotes += '### Changes\n' + others.slice(0, 3).join('\n') + '\n\n';
+            }
+            
+            if (!releaseNotes.trim()) {
+              releaseNotes = '### Updates\n- Various improvements and updates\n\n';
+            }
+            
+            return releaseNotes;
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -82,9 +138,7 @@ jobs:
             bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sophia-cli/main/install.sh)"
             ```
 
-            ### What's Changed
-            - Auto-generated release from main branch
-            - Bug fixes and improvements
+            ${{ steps.generate_notes.outputs.result }}
 
             ### Full Changelog
             **Full Changelog**: https://github.com/samueldervishii/sophia-cli/commits/v${{ steps.version.outputs.new_version }}
