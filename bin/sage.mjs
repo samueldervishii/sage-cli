@@ -510,20 +510,34 @@ async function performUpdate() {
 }
 
 function compareVersions(version1, version2) {
-  const cleanVersion1 = version1.replace(/-.*$/, "");
-  const cleanVersion2 = version2.replace(/-.*$/, "");
+  const parseVersion = version => {
+    const parts = version.split("-");
+    const versionPart = parts[0];
+    const prerelease = parts[1] || "";
 
-  const v1Parts = cleanVersion1.split(".").map(Number);
-  const v2Parts = cleanVersion2.split(".").map(Number);
+    return {
+      version: versionPart.split(".").map(Number),
+      prerelease: prerelease,
+    };
+  };
 
-  const maxLength = Math.max(v1Parts.length, v2Parts.length);
-  while (v1Parts.length < maxLength) v1Parts.push(0);
-  while (v2Parts.length < maxLength) v2Parts.push(0);
+  const v1 = parseVersion(version1);
+  const v2 = parseVersion(version2);
+
+  const maxLength = Math.max(v1.version.length, v2.version.length);
+  while (v1.version.length < maxLength) v1.version.push(0);
+  while (v2.version.length < maxLength) v2.version.push(0);
 
   for (let i = 0; i < maxLength; i++) {
-    if (v1Parts[i] > v2Parts[i]) return 1;
-    if (v1Parts[i] < v2Parts[i]) return -1;
+    if (v1.version[i] > v2.version[i]) return 1;
+    if (v1.version[i] < v2.version[i]) return -1;
   }
+  if (!v1.prerelease && v2.prerelease) return 1;
+  if (v1.prerelease && !v2.prerelease) return -1;
+  if (!v1.prerelease && !v2.prerelease) return 0;
+
+  if (v1.prerelease > v2.prerelease) return 1;
+  if (v1.prerelease < v2.prerelease) return -1;
 
   return 0;
 }
