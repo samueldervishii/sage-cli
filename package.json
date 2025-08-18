@@ -9,11 +9,11 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/samueldervishi1/sophia-cli.git"
+    "url": "git+https://github.com/samueldervishii/sophia-cli.git"
   },
-  "homepage": "https://github.com/samueldervishi1/sophia-cli#readme",
+  "homepage": "https://github.com/samueldervishii/sophia-cli#readme",
   "bugs": {
-    "url": "https://github.com/samueldervishi1/sophia-cli/issues"
+    "url": "https://github.com/samueldervishii/sophia-cli/issues"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

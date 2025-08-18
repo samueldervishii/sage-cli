@@ -10,7 +10,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Project info
-REPO="samueldervishi1/sophia-cli"
+REPO="samueldervishii/sophia-cli"
 BINARY_NAME="sophia"
 
 # Function to print colored output

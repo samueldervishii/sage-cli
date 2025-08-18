@@ -21,7 +21,7 @@ Interactive CLI tool for generating mock servers and APIs.
 Install Sophia CLI with a single command:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishi1/sophia-cli/main/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sophia-cli/main/install.sh)"
 ```
 
 This will:
