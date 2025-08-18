@@ -194,7 +194,7 @@ setup_path() {
 
 # Main installation function
 main() {
-    print_status "🤖 Installing Sophia CLI..."
+    print_status "Installing Sophia CLI..."
     print_status "Platform: $(get_platform)"
     
     # Check prerequisites
@@ -206,7 +206,7 @@ main() {
     # Verify installation
     if verify_installation; then
         setup_path
-        print_success "🎉 Installation completed successfully!"
+        print_success "Installation completed successfully!"
         print_status "Run '$BINARY_NAME --help' to get started"
     else
         print_error "Installation verification failed. Please check the installation manually."
