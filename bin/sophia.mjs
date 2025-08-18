@@ -206,7 +206,7 @@ function parseChangelogFromBody(body) {
       .replace(/^["'`]+|["'`]+$/g, "") // Remove surrounding quotes/backticks
       .replace(/^#+\s*/, "") // Remove markdown headers
       .replace(/^\*+\s*/, "") // Remove asterisk bullets
-      .replace(/^-+\s*/, "") // Remove dash bullets  
+      .replace(/^-+\s*/, "") // Remove dash bullets
       .replace(/\s+/g, " ") // Collapse multiple spaces
       .replace(/^(New Features|Bug Fixes|Improvements|Changes)$/i, "") // Remove section headers
       .trim();
