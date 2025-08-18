@@ -16,6 +16,22 @@ Interactive CLI tool for generating mock servers and APIs.
 
 ## Installation
 
+### Quick Install (Recommended)
+
+Install Sophia CLI with a single command:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishi1/sophia-cli/main/install.sh)"
+```
+
+This will:
+- Check Node.js requirements (v14+)
+- Download and install Sophia CLI from GitHub
+- Set up the `sophia` command globally
+- Optionally add to your PATH
+
+### Manual Installation
+
 1. Clone or download this repository
 2. Install dependencies:
    ```bash
@@ -25,6 +41,12 @@ Interactive CLI tool for generating mock servers and APIs.
    ```bash
    npm link
    ```
+
+### Requirements
+
+- **Node.js** version 14 or higher
+- **npm** (comes with Node.js)
+- **curl** or **wget** (for installation script)
 
 ## Usage
 

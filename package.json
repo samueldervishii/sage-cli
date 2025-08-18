@@ -6,17 +6,31 @@
   "bin": {
     "sophia": "./bin/sophia.mjs"
   },
-  "private": false,
-  "publishConfig": {
-    "access": "restricted"
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samueldervishi1/sophia-cli.git"
+  },
+  "homepage": "https://github.com/samueldervishi1/sophia-cli#readme",
+  "bugs": {
+    "url": "https://github.com/samueldervishi1/sophia-cli/issues"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md,mjs}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md,mjs}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md,mjs}\"",
+    "start": "node bin/sophia.mjs"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "cli",
+    "ai",
+    "assistant",
+    "chatbot",
+    "terminal",
+    "interactive",
+    "sophia"
+  ],
+  "author": "Samuel",
   "license": "ISC",
   "type": "module",
   "dependencies": {
