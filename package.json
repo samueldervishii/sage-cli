@@ -1,6 +1,6 @@
 {
   "name": "sage-cli",
-  "version": "0.0.9-beta",
+  "version": "0.0.10-beta",
   "description": "Sage - Interactive AI CLI by Samuel",
   "main": "index.js",
   "bin": {
