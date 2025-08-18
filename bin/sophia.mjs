@@ -25,6 +25,17 @@ import SetupWizard from "../lib/setup-wizard.mjs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Function to reload environment variables
+function reloadEnvVars() {
+  // Reload from project root
+  dotenv.config({ override: true });
+  // Reload from install location
+  dotenv.config({
+    path: path.join(os.homedir(), ".local", "bin", "sophia-cli", ".env"),
+    override: true
+  });
+}
+
 async function displayBanner() {
   const banner = gradient([
     "#FF6B6B",
@@ -174,52 +185,53 @@ function parseChangelogFromBody(body) {
   const lines = body.split("\n");
 
   for (const line of lines) {
-    const trimmed = line.trim();
+    let trimmed = line.trim();
+    
+    // Skip empty lines, code blocks, headers, and URLs
+    if (!trimmed || 
+        trimmed.startsWith('```') || 
+        trimmed.startsWith('##') || 
+        trimmed.startsWith('###') ||
+        trimmed.includes('http') ||
+        trimmed.toLowerCase().includes('installation') ||
+        trimmed.toLowerCase().includes('full changelog')) {
+      continue;
+    }
+    
+    // Clean up escaped characters and malformed markdown
+    trimmed = trimmed
+      .replace(/\\n/g, ' ')           // Remove escaped newlines
+      .replace(/^["'`]+|["'`]+$/g, '') // Remove surrounding quotes/backticks
+      .replace(/\s+/g, ' ')           // Collapse multiple spaces
+      .trim();
+    
+    // Look for bullet points or dashes
     if (trimmed.match(/^[-*•]\s+/) || trimmed.match(/^\d+\.\s+/)) {
-      const change = trimmed
-        .replace(/^[-*•]\s+/, "")
-        .replace(/^\d+\.\s+/, "")
-        .trim();
-      if (change && !change.toLowerCase().includes("full changelog")) {
+      const change = trimmed.replace(/^[-*•]\s+/, '').replace(/^\d+\.\s+/, '').trim();
+      if (change && change.length > 3 && change.length < 200) {
         changes.push(change);
       }
-    } else if (
-      trimmed.toLowerCase().includes("what's changed") ||
-      trimmed.toLowerCase().includes("changes") ||
-      trimmed.toLowerCase().includes("features")
-    ) {
-      continue;
-    } else if (
-      trimmed.length > 10 &&
-      !trimmed.startsWith("#") &&
-      !trimmed.startsWith("**") &&
-      !trimmed.includes("http") &&
-      !trimmed.includes("install") &&
-      !trimmed.includes("changelog")
-    ) {
+    }
+    // Look for meaningful content (not headers or metadata)
+    else if (trimmed.length > 10 && 
+             trimmed.length < 200 &&
+             !trimmed.startsWith('#') && 
+             !trimmed.startsWith('**') &&
+             !trimmed.toLowerCase().includes("what's changed") &&
+             !trimmed.toLowerCase().includes("bash -c") &&
+             !trimmed.match(/^\w+:$/)) { // Skip section headers like "Features:"
       changes.push(trimmed);
     }
   }
-
-  if (changes.length === 0) {
-    const meaningfulLines = body
-      .split("\n")
-      .map(line => line.trim())
-      .filter(
-        line =>
-          line.length > 5 &&
-          !line.startsWith("#") &&
-          !line.includes("http") &&
-          !line.toLowerCase().includes("installation") &&
-          !line.toLowerCase().includes("full changelog")
-      );
-
-    if (meaningfulLines.length > 0) {
-      changes.push(...meaningfulLines.slice(0, 5));
-    }
-  }
-
-  return changes.length > 0 ? changes : ["Release notes not available"];
+  
+  // Clean up and deduplicate changes
+  const cleanChanges = changes
+    .filter(change => change && change.trim().length > 3)
+    .map(change => change.charAt(0).toUpperCase() + change.slice(1)) // Capitalize first letter
+    .filter((change, index, array) => array.indexOf(change) === index) // Remove duplicates
+    .slice(0, 8); // Limit to 8 items
+  
+  return cleanChanges.length > 0 ? cleanChanges : ["Release notes not available"];
 }
 
 async function showChangelog() {
@@ -499,6 +511,9 @@ async function startInteractiveMode() {
   if (!hasKeys) {
     return;
   }
+  
+  // Reload environment variables after setup in case .env was created
+  reloadEnvVars();
 
   try {
     const updateInfo = await checkForUpdates(true);
@@ -1106,6 +1121,7 @@ if (process.argv.length > 2) {
     case "setup":
       const setupWizard = new SetupWizard();
       await setupWizard.run();
+      reloadEnvVars(); // Reload environment after setup
       process.exit(0);
     case "--help":
     case "-h":
