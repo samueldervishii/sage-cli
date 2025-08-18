@@ -4,5 +4,4 @@ logs/
 conversations/
 .claude/
 .samuelrc.json
-package-lock.json
 generated/
