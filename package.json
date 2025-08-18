@@ -1,6 +1,6 @@
 {
   "name": "sophia-cli",
-  "version": "0.0.5-beta",
+  "version": "0.0.6-beta",
   "description": "Sophia - Interactive AI CLI by Samuel",
   "main": "index.js",
   "bin": {
