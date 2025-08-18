@@ -123,7 +123,7 @@ jobs:
               releaseNotes = '### Updates\n- Various improvements and updates\n\n';
             }
 
-            return releaseNotes;
+            core.setOutput('release-notes', releaseNotes);
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -138,7 +138,7 @@ jobs:
             bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.sh)"
             ```
 
-            ${{ steps.generate_notes.outputs.result }}
+            ${{ steps.generate_notes.outputs.release-notes }}
 
             ### Full Changelog
             **Full Changelog**: https://github.com/samueldervishii/sage-cli/commits/v${{ steps.version.outputs.new_version }}

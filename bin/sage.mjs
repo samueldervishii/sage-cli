@@ -179,15 +179,25 @@ async function fetchGitHubReleases() {
 }
 
 function parseChangelogFromBody(body) {
-  if (!body) return [];
+  if (!body) return ["Release notes not available"];
+
+  let processedBody = body;
+  const jsonStringMatch = body.match(/"(### .*?)"/s);
+  if (jsonStringMatch && jsonStringMatch[1].includes("\\n")) {
+    try {
+      const parsedContent = JSON.parse(`"${jsonStringMatch[1]}"`);
+      processedBody = body + "\n\n" + parsedContent;
+    } catch (e) {
+      processedBody = body;
+    }
+  }
 
   const changes = [];
-  const lines = body.split("\n");
+  const lines = processedBody.split("\n");
 
   for (const line of lines) {
     let trimmed = line.trim();
 
-    // Skip empty lines, code blocks, headers, and URLs
     if (
       !trimmed ||
       trimmed.startsWith("```") ||
@@ -200,18 +210,16 @@ function parseChangelogFromBody(body) {
       continue;
     }
 
-    // Clean up escaped characters and malformed markdown
     trimmed = trimmed
-      .replace(/\\n/g, " ") // Remove escaped newlines
-      .replace(/^["'`]+|["'`]+$/g, "") // Remove surrounding quotes/backticks
-      .replace(/^#+\s*/, "") // Remove markdown headers
-      .replace(/^\*+\s*/, "") // Remove asterisk bullets
-      .replace(/^-+\s*/, "") // Remove dash bullets
-      .replace(/\s+/g, " ") // Collapse multiple spaces
-      .replace(/^(New Features|Bug Fixes|Improvements|Changes)$/i, "") // Remove section headers
+      .replace(/\\n/g, " ")
+      .replace(/^["'`]+|["'`]+$/g, "")
+      .replace(/^#+\s*/, "")
+      .replace(/^\*+\s*/, "")
+      .replace(/^-+\s*/, "")
+      .replace(/\s+/g, " ")
+      .replace(/^(New Features|Bug Fixes|Improvements|Changes)$/i, "")
       .trim();
 
-    // Look for bullet points or dashes
     if (trimmed.match(/^[-*•]\s+/) || trimmed.match(/^\d+\.\s+/)) {
       const change = trimmed
         .replace(/^[-*•]\s+/, "")
@@ -220,9 +228,7 @@ function parseChangelogFromBody(body) {
       if (change && change.length > 3 && change.length < 200) {
         changes.push(change);
       }
-    }
-    // Look for meaningful content (not headers or metadata)
-    else if (
+    } else if (
       trimmed.length > 5 &&
       trimmed.length < 200 &&
       !trimmed.startsWith("#") &&
@@ -233,19 +239,18 @@ function parseChangelogFromBody(body) {
       !trimmed.toLowerCase().includes("new features") &&
       !trimmed.toLowerCase().includes("bug fixes") &&
       !trimmed.toLowerCase().includes("improvements") &&
-      !trimmed.match(/^\w+:$/) && // Skip section headers like "Features:"
-      !trimmed.match(/^".*"$/) // Skip quoted strings
+      !trimmed.match(/^\w+:$/) &&
+      !trimmed.match(/^".*"$/)
     ) {
       changes.push(trimmed);
     }
   }
 
-  // Clean up and deduplicate changes
   const cleanChanges = changes
     .filter(change => change && change.trim().length > 3)
-    .map(change => change.charAt(0).toUpperCase() + change.slice(1)) // Capitalize first letter
-    .filter((change, index, array) => array.indexOf(change) === index) // Remove duplicates
-    .slice(0, 8); // Limit to 8 items
+    .map(change => change.charAt(0).toUpperCase() + change.slice(1))
+    .filter((change, index, array) => array.indexOf(change) === index)
+    .slice(0, 8);
 
   return cleanChanges.length > 0
     ? cleanChanges
