@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 
 import dotenv from "dotenv";
-dotenv.config();
-
+import os from "os";
 import path from "path";
+
+dotenv.config();
+dotenv.config({
+  path: path.join(os.homedir(), ".local", "bin", "sophia-cli", ".env"),
+});
+
 import { fileURLToPath } from "url";
 import { spawn } from "child_process";
 import fs from "fs-extra";
@@ -117,106 +122,349 @@ async function getBuildInfo() {
   return null;
 }
 
+async function fetchGitHubReleases() {
+  try {
+    const packagePath = path.join(__dirname, "../package.json");
+    const packageData = await fs.readJson(packagePath);
+
+    const repoUrl = packageData.repository?.url || "";
+    const match = repoUrl.match(/github\.com[/:]([^/]+)\/([^/.]+)/);
+
+    if (!match) {
+      throw new Error(
+        "Could not determine GitHub repository from package.json"
+      );
+    }
+
+    const [, owner, repo] = match;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/releases`;
+
+    const response = await axios.get(apiUrl, {
+      timeout: 5000,
+      headers: {
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "sophia-cli",
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      chalk.yellow("Warning: Could not fetch GitHub releases"),
+      error.message
+    );
+    return null;
+  }
+}
+
+function parseChangelogFromBody(body) {
+  if (!body) return [];
+
+  const changes = [];
+  const lines = body.split("\n");
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.match(/^[-*•]\s+/) || trimmed.match(/^\d+\.\s+/)) {
+      const change = trimmed
+        .replace(/^[-*•]\s+/, "")
+        .replace(/^\d+\.\s+/, "")
+        .trim();
+      if (change && !change.toLowerCase().includes("full changelog")) {
+        changes.push(change);
+      }
+    } else if (
+      trimmed.toLowerCase().includes("what's changed") ||
+      trimmed.toLowerCase().includes("changes") ||
+      trimmed.toLowerCase().includes("features")
+    ) {
+      continue;
+    } else if (
+      trimmed.length > 10 &&
+      !trimmed.startsWith("#") &&
+      !trimmed.startsWith("**") &&
+      !trimmed.includes("http") &&
+      !trimmed.includes("install") &&
+      !trimmed.includes("changelog")
+    ) {
+      changes.push(trimmed);
+    }
+  }
+
+  if (changes.length === 0) {
+    const meaningfulLines = body
+      .split("\n")
+      .map(line => line.trim())
+      .filter(
+        line =>
+          line.length > 5 &&
+          !line.startsWith("#") &&
+          !line.includes("http") &&
+          !line.toLowerCase().includes("installation") &&
+          !line.toLowerCase().includes("full changelog")
+      );
+
+    if (meaningfulLines.length > 0) {
+      changes.push(...meaningfulLines.slice(0, 5));
+    }
+  }
+
+  return changes.length > 0 ? changes : ["Release notes not available"];
+}
+
 async function showChangelog() {
   console.log(chalk.cyan("\n Sophia CLI Changelog\n"));
 
-  const changelogData = [
-    {
-      version: "1.3.0",
-      date: "2025-08-08",
-      changes: [
-        "Added version control system",
-        "Added changelog display",
-        "Added update checking functionality",
-        "Enhanced help system",
-        "Improved documentation",
-      ],
-    },
-    {
-      version: "1.2.0",
-      date: "2025-08-07",
-      changes: [
-        "Web search integration via MCP",
-        "Secure filesystem access",
-        "Improved chat mode stability",
-        "Fixed generation timeout issues",
-      ],
-    },
-    {
-      version: "1.1.0",
-      date: "2025-08-05",
-      changes: [
-        "Interactive chat mode",
-        "Conversation persistence",
-        "Enhanced UI with gradients",
-        "Better error handling",
-      ],
-    },
-    {
-      version: "1.0.0",
-      date: "2025-08-01",
-      changes: [
-        "Initial release",
-        "AI-powered mock server generation",
-        "Interactive terminal interface",
-        "Configuration management",
-      ],
-    },
-  ];
+  const spinner = ora("Fetching changelog from GitHub...").start();
 
-  changelogData.forEach(release => {
-    console.log(
-      chalk.green.bold(`v${release.version}`) + chalk.gray(` (${release.date})`)
-    );
-    release.changes.forEach(change => {
-      console.log(`  ${change}`);
+  try {
+    const releases = await fetchGitHubReleases();
+    spinner.stop();
+
+    if (!releases || releases.length === 0) {
+      console.log(chalk.yellow("No releases found on GitHub."));
+      return;
+    }
+
+    releases.slice(0, 10).forEach(release => {
+      const version = release.tag_name.replace(/^v/, ""); // Remove 'v' prefix
+      const date = new Date(release.published_at).toLocaleDateString();
+      const changes = parseChangelogFromBody(release.body);
+
+      console.log(chalk.green.bold(`v${version}`) + chalk.gray(` (${date})`));
+
+      if (release.name && release.name !== release.tag_name) {
+        console.log(chalk.italic.gray(`  ${release.name}`));
+      }
+
+      changes.forEach(change => {
+        console.log(`  • ${change}`);
+      });
+
+      console.log();
     });
+
+    if (releases.length > 10) {
+      console.log(chalk.gray(`... and ${releases.length - 10} more releases`));
+      console.log(
+        chalk.gray(
+          `View full changelog: https://github.com/samueldervishii/sophia-cli/releases`
+        )
+      );
+    }
+  } catch (error) {
+    spinner.stop();
+    console.error(chalk.red("Error fetching changelog:"), error.message);
+    console.log(chalk.gray("Falling back to manual changelog..."));
+
+    console.log(chalk.green.bold("v0.0.2-beta") + chalk.gray(" (Latest)"));
+    console.log("  • Interactive AI CLI assistant");
+    console.log("  • Chat mode with conversation persistence");
+    console.log("  • Secure file system access");
+    console.log("  • Terminal command execution");
+    console.log("  • Web search integration");
     console.log();
-  });
+  }
 }
 
-async function checkForUpdates() {
-  const spinner = ora("Checking for updates...").start();
+async function checkForUpdates(silent = false) {
+  const spinner = !silent ? ora("Checking for updates...").start() : null;
 
   try {
     const packagePath = path.join(__dirname, "../package.json");
     const packageData = await fs.readJson(packagePath);
     const currentVersion = packageData.version;
 
-    // Check npm registry for latest version
-    const response = await axios.get(
-      `https://registry.npmjs.org/${packageData.name}/latest`
-    );
-    const latestVersion = response.data.version;
+    // Get latest release from GitHub
+    const releases = await fetchGitHubReleases();
 
-    spinner.stop();
+    if (!releases || releases.length === 0) {
+      if (spinner) spinner.stop();
+      if (!silent) {
+        console.log(chalk.yellow("No releases found on GitHub."));
+        console.log(
+          chalk.gray("This appears to be a local development version")
+        );
+      }
+      return null;
+    }
+
+    const latestRelease = releases[0];
+    const latestVersion = latestRelease.tag_name.replace(/^v/, "");
+
+    if (spinner) spinner.stop();
 
     const comparison = compareVersions(currentVersion, latestVersion);
 
     if (comparison === 0) {
-      console.log(chalk.green("You're running the latest version!"));
-      console.log(chalk.gray(`Current version: ${currentVersion}`));
+      if (!silent) {
+        console.log(chalk.green("You're running the latest version!"));
+        console.log(chalk.gray(`Current version: ${currentVersion}`));
+      }
+      return null;
     } else if (comparison < 0) {
-      console.log(chalk.yellow("A new version is available!"));
-      console.log(chalk.gray(`Current: ${currentVersion}`));
-      console.log(chalk.cyan(`Latest: ${latestVersion}`));
-      console.log(chalk.white("\nTo update, run:"));
-      console.log(chalk.cyan(`  npm update -g ${packageData.name}`));
+      const updateInfo = {
+        current: currentVersion,
+        latest: latestVersion,
+        releaseUrl: latestRelease.html_url,
+        releaseNotes: parseChangelogFromBody(latestRelease.body),
+      };
+
+      if (!silent) {
+        console.log(chalk.yellow("A new version is available!"));
+        console.log(chalk.gray(`Current: ${currentVersion}`));
+        console.log(chalk.cyan(`Latest: ${latestVersion}`));
+        console.log(chalk.white("\nTo update, run:"));
+        console.log(chalk.cyan(`  sophia update`));
+
+        if (updateInfo.releaseNotes.length > 0) {
+          console.log(chalk.white("\nWhat's new:"));
+          updateInfo.releaseNotes.slice(0, 3).forEach(note => {
+            console.log(chalk.gray(`  • ${note}`));
+          });
+        }
+      }
+
+      return updateInfo;
     } else {
-      console.log(chalk.blue("You're running a development version!"));
-      console.log(chalk.gray(`Current: ${currentVersion} (dev)`));
-      console.log(chalk.yellow("This is a local development build."));
+      if (!silent) {
+        console.log(chalk.blue("You're running a development version!"));
+        console.log(chalk.gray(`Current: ${currentVersion} (dev)`));
+        console.log(chalk.yellow("This is a local development build."));
+      }
+      return null;
     }
   } catch (error) {
-    spinner.stop();
-
-    if (error.code === "ENOTFOUND" || error.response?.status === 404) {
-      console.log(chalk.yellow("Package not published to npm registry yet"));
-      console.log(chalk.gray("This appears to be a local development version"));
-    } else {
-      console.log(chalk.red("Failed to check for updates"));
+    if (spinner) spinner.stop();
+    if (!silent) {
+      console.log(chalk.red("Failed to check for updates:"), error.message);
       console.log(chalk.gray("Please check your internet connection"));
     }
+    return null;
+  }
+}
+
+async function performUpdate() {
+  console.log(chalk.cyan("\nSophia CLI Update\n"));
+
+  try {
+    const updateInfo = await checkForUpdates(true);
+
+    if (!updateInfo) {
+      console.log(chalk.green("You're already running the latest version!"));
+      return;
+    }
+
+    console.log(
+      chalk.yellow(
+        `Updating from v${updateInfo.current} to v${updateInfo.latest}...`
+      )
+    );
+
+    const { confirmUpdate } = await inquirer.prompt([
+      {
+        type: "confirm",
+        name: "confirmUpdate",
+        message: `Do you want to update to v${updateInfo.latest}?`,
+        default: true,
+      },
+    ]);
+
+    if (!confirmUpdate) {
+      console.log(chalk.yellow("Update cancelled."));
+      return;
+    }
+
+    console.log(chalk.blue("\nDownloading and installing update..."));
+
+    const installScriptUrl =
+      "https://raw.githubusercontent.com/samueldervishii/sophia-cli/main/install.sh";
+    const tempDir = path.join(os.tmpdir(), "sophia-update");
+    const scriptPath = path.join(tempDir, "install.sh");
+
+    await fs.ensureDir(tempDir);
+
+    const spinner = ora("Downloading installation script...").start();
+
+    try {
+      const response = await axios.get(installScriptUrl, {
+        timeout: 10000,
+        headers: {
+          "User-Agent": "sophia-cli-updater",
+        },
+      });
+
+      await fs.writeFile(scriptPath, response.data);
+      spinner.text = "Installation script downloaded";
+
+      await fs.chmod(scriptPath, 0o755);
+
+      spinner.stop();
+      console.log(chalk.green("Installation script ready"));
+
+      console.log(chalk.blue("Running installation script..."));
+      console.log(
+        chalk.gray("This will update Sophia CLI to the latest version.")
+      );
+
+      await new Promise((resolve, reject) => {
+        const child = spawn("bash", [scriptPath], {
+          stdio: "inherit",
+          env: { ...process.env, SOPHIA_UPDATE: "true" },
+        });
+
+        child.on("close", code => {
+          if (code === 0) {
+            resolve(code);
+          } else {
+            reject(new Error(`Installation script failed with code ${code}`));
+          }
+        });
+
+        child.on("error", err => {
+          reject(err);
+        });
+      });
+
+      console.log(chalk.green("\nUpdate completed successfully!"));
+      console.log(
+        chalk.cyan(`Sophia CLI has been updated to v${updateInfo.latest}`)
+      );
+
+      if (updateInfo.releaseNotes.length > 0) {
+        console.log(chalk.white("\nWhat's new in this version:"));
+        updateInfo.releaseNotes.forEach(note => {
+          console.log(chalk.gray(`  • ${note}`));
+        });
+      }
+
+      console.log(chalk.yellow("\nRestarting with new version..."));
+
+      await fs.remove(tempDir);
+
+      process.exit(0);
+    } catch (downloadError) {
+      spinner.stop();
+      console.error(
+        chalk.red("Failed to download installation script:"),
+        downloadError.message
+      );
+      console.log(chalk.gray("\nFallback: Manual installation instructions:"));
+      console.log(chalk.cyan("Run this command to update manually:"));
+      console.log(
+        chalk.white(
+          `bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sophia-cli/main/install.sh)"`
+        )
+      );
+    }
+  } catch (error) {
+    console.error(chalk.red("Update failed:"), error.message);
+    console.log(chalk.gray("\nYou can try updating manually with:"));
+    console.log(
+      chalk.cyan(
+        'bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sophia-cli/main/install.sh)"'
+      )
+    );
   }
 }
 
@@ -240,12 +488,25 @@ async function startInteractiveMode() {
   displayBanner();
   console.log();
 
-  // Check for API keys on startup
   const setupWizard = new SetupWizard();
   const hasKeys = await setupWizard.quickSetup();
   if (!hasKeys) {
-    return; // Exit if user declined setup
+    return;
   }
+
+  try {
+    const updateInfo = await checkForUpdates(true);
+    if (updateInfo) {
+      console.log(
+        chalk.yellow("New version available!"),
+        chalk.cyan(`v${updateInfo.latest}`)
+      );
+      console.log(
+        chalk.gray(`Run 'sophia update' to update from v${updateInfo.current}`)
+      );
+      console.log();
+    }
+  } catch (error) {}
 
   while (true) {
     const { action } = await inquirer.prompt([
@@ -508,7 +769,7 @@ async function handleVersionControl() {
       choices: [
         { name: "Show Current Version", value: "version" },
         { name: "View Changelog", value: "changelog" },
-        { name: "Check for Updates", value: "update" },
+        { name: "Update to Latest Version", value: "update" },
         { name: "Back to Main Menu", value: "back" },
       ],
     },
@@ -522,7 +783,7 @@ async function handleVersionControl() {
       await showChangelog();
       break;
     case "update":
-      await checkForUpdates();
+      await performUpdate();
       break;
     case "back":
       return;
@@ -834,7 +1095,7 @@ if (process.argv.length > 2) {
       await showChangelog();
       process.exit(0);
     case "update":
-      await checkForUpdates();
+      await performUpdate();
       process.exit(0);
     case "setup":
       const setupWizard = new SetupWizard();
@@ -863,7 +1124,7 @@ Configuration:
 Version Control:
   sophia --version, -v      Show current version
   sophia changelog          Show version history
-  sophia update             Check for updates
+  sophia update             Update to latest version
 
 Legacy Commands:
   sophia "prompt"           Generate mock server from prompt
