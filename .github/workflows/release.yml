@@ -3,13 +3,15 @@ name: Auto Release
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   release:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
@@ -37,11 +39,9 @@ jobs:
       - name: Determine version bump
         id: version
         run: |
-          # Get current version from package.json
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           echo "Current version: $CURRENT_VERSION"
 
-          # Parse version components
           if [[ $CURRENT_VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-beta)?$ ]]; then
             MAJOR=${BASH_REMATCH[1]}
             MINOR=${BASH_REMATCH[2]}
@@ -52,10 +52,8 @@ jobs:
             exit 1
           fi
 
-          # Increment patch version
           NEW_PATCH=$((PATCH + 1))
 
-          # Create new version
           if [[ -n "$IS_BETA" ]]; then
             NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}-beta"
           else
@@ -89,11 +87,10 @@ jobs:
             - Bug fixes and improvements
 
             ### Full Changelog
-            See commit history for detailed changes.
+            **Full Changelog**: https://github.com/samueldervishii/sophia-cli/commits/v${{ steps.version.outputs.new_version }}
           draft: false
           prerelease: ${{ contains(steps.version.outputs.new_version, 'beta') }}
 
       - name: Push changes
         run: |
           git push origin main
-          git push origin v${{ steps.version.outputs.new_version }}
