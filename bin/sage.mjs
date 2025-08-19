@@ -634,6 +634,7 @@ async function startConversationalChat() {
 
   try {
     const chat = new SimpleChat();
+    await chat.initialize();
     const result = await chat.startChat();
 
     if (result === "menu") {
@@ -644,10 +645,8 @@ async function startConversationalChat() {
     }
   } catch (error) {
     console.error(chalk.red("Error starting chat mode:"), error.message);
-    if (error.message.includes("GEMINI_API_KEY")) {
-      console.log(
-        chalk.yellow("Make sure your GEMINI_API_KEY is set in the .env file")
-      );
+    if (error.message.includes("GEMINI_API_KEY not found in configuration")) {
+      console.log(chalk.yellow("Run 'sage setup' to configure your API keys"));
     }
     process.exit(1);
   }
@@ -1133,6 +1132,7 @@ if (process.argv.length > 2) {
     case "chat":
       console.log(chalk.blue("Starting Sage Chat Mode..."));
       const chat = new SimpleChat();
+      await chat.initialize();
       await chat.startChat();
       break;
     case "files":
