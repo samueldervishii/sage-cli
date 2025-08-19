@@ -31,6 +31,12 @@ jobs:
       - name: Run format check
         run: npm run format:check
 
+      - name: Security audit
+        run: npm audit --audit-level moderate
+
+      - name: Check for vulnerabilities
+        run: npm audit --audit-level high --production
+
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
@@ -42,22 +48,39 @@ jobs:
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           echo "Current version: $CURRENT_VERSION"
 
-          if [[ $CURRENT_VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-beta)?$ ]]; then
+          # Enhanced regex to handle more semver formats including beta.X
+          if [[ $CURRENT_VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-beta(\.[0-9]+)?)?$ ]]; then
             MAJOR=${BASH_REMATCH[1]}
             MINOR=${BASH_REMATCH[2]}
             PATCH=${BASH_REMATCH[3]}
             IS_BETA=${BASH_REMATCH[4]}
+            BETA_NUM=${BASH_REMATCH[5]}
           else
-            echo "Invalid version format"
+            echo "Invalid version format: $CURRENT_VERSION"
+            echo "Expected format: X.Y.Z or X.Y.Z-beta or X.Y.Z-beta.N"
             exit 1
           fi
 
-          NEW_PATCH=$((PATCH + 1))
+          # Determine bump type from recent commits
+          COMMIT_MESSAGES=$(git log --oneline -10 --pretty=format:"%s")
 
-          if [[ -n "$IS_BETA" ]]; then
-            NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}-beta"
+          if echo "$COMMIT_MESSAGES" | grep -qE "^(feat|feature)\(.*\)!:|^(fix|chore)\(.*\)!:|BREAKING CHANGE"; then
+            # Major version bump for breaking changes
+            NEW_MAJOR=$((MAJOR + 1))
+            NEW_VERSION="${NEW_MAJOR}.0.0"
+          elif echo "$COMMIT_MESSAGES" | grep -qE "^feat(\(.*\))?:|^feature(\(.*\))?:"; then
+            # Minor version bump for new features  
+            NEW_MINOR=$((MINOR + 1))
+            NEW_VERSION="${MAJOR}.${NEW_MINOR}.0"
           else
+            # Patch version bump for fixes and other changes
+            NEW_PATCH=$((PATCH + 1))
             NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          fi
+
+          # Preserve beta suffix if current version is beta
+          if [[ -n "$IS_BETA" ]]; then
+            NEW_VERSION="${NEW_VERSION}-beta"
           fi
 
           echo "New version: $NEW_VERSION"
@@ -74,11 +97,22 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            let lastReleaseDate;
+            try {
+              const { data: lastRelease } = await github.rest.repos.getLatestRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              lastReleaseDate = lastRelease.created_at;
+            } catch (error) {
+              lastReleaseDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+            }
+
             const { data: commits } = await github.rest.repos.listCommits({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // Last 7 days
-              per_page: 50
+              since: lastReleaseDate,
+              per_page: 100
             });
 
             const features = [];
