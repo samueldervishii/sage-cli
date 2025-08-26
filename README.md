@@ -16,15 +16,31 @@ Interactive CLI tool for generating mock servers and APIs.
 
 ## Installation
 
-### Quick Install (Recommended)
+### Quick Install (Cross-Platform)
 
-Install Sage CLI with a single command:
+Choose the installation method for your platform:
+
+#### Linux/macOS (Bash)
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.sh)"
 ```
 
-This will:
+#### Windows (PowerShell)
+
+```powershell
+# Run in PowerShell as Administrator
+iwr -useb https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.ps1 | iex
+```
+
+#### Cross-Platform (Node.js)
+
+```bash
+# Requires Node.js 14+
+node -e "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.mjs)"
+```
+
+All installation methods will:
 
 - Check Node.js requirements (v14+)
 - Download and install Sage CLI from GitHub
@@ -47,7 +63,15 @@ This will:
 
 - **Node.js** version 14 or higher
 - **npm** (comes with Node.js)
-- **curl** or **wget** (for installation script)
+- **curl** or **wget** (for bash installation)
+- **PowerShell** (for Windows installation)
+
+### Platform Support
+
+- **Linux** (all distributions) - Use bash installer
+- **macOS** - Use bash installer
+- **Windows** - Use PowerShell installer
+- **Any OS with Node.js** - Use Node.js installer
 
 ## Usage
 
