@@ -2,18 +2,15 @@
 
 set -e
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Project info
 REPO="samueldervishii/sage-cli"
 BINARY_NAME="sage"
 
-# Function to print colored output
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -30,12 +27,10 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to get OS and architecture
 get_platform() {
     local os=$(uname -s | tr '[:upper:]' '[:lower:]')
     local arch=$(uname -m)
@@ -57,7 +52,6 @@ get_platform() {
     echo "${os}-${arch}"
 }
 
-# Function to check Node.js version
 check_node() {
     if ! command_exists node; then
         print_error "Node.js is not installed. Please install Node.js (version 14 or higher) first."
@@ -74,7 +68,6 @@ check_node() {
     print_success "Node.js $(node --version) found"
 }
 
-# Function to install from GitHub
 install_from_github() {
     print_status "Installing Sage CLI from GitHub..."
     
@@ -82,16 +75,13 @@ install_from_github() {
     local install_dir="$HOME/.local/bin"
     local sage_dir="$install_dir/sage-cli"
 
-    # Create install directory if it doesn't exist
     mkdir -p "$install_dir"
     
-    # Remove existing installation if it exists
     if [ -d "$sage_dir" ]; then
         print_status "Removing existing installation..."
         rm -rf "$sage_dir"
     fi
     
-    # Download the repository
     print_status "Downloading from GitHub..."
     if command_exists curl; then
         curl -fsSL "https://github.com/$REPO/archive/main.tar.gz" | tar -xz -C "$temp_dir"
@@ -102,10 +92,8 @@ install_from_github() {
         exit 1
     fi
     
-    # Navigate to extracted directory
     cd "$temp_dir/sage-cli-main"
     
-    # Install dependencies
     print_status "Installing dependencies..."
     if command_exists npm; then
         npm install --production --silent
@@ -114,24 +102,18 @@ install_from_github() {
         exit 1
     fi
     
-    # Copy to install directory
     print_status "Installing to $sage_dir..."
     cp -r . "$sage_dir"
 
-    # Create executable wrapper
     cat > "$install_dir/$BINARY_NAME" << EOF
 #!/bin/bash
 exec node "$sage_dir/bin/sage.mjs" "\$@"
 EOF
     
     chmod +x "$install_dir/$BINARY_NAME"
-    
-    # Clean up
     rm -rf "$temp_dir"
-    
     print_success "$BINARY_NAME installed to $install_dir/$BINARY_NAME"
     
-    # Check if install_dir is in PATH
     if [[ ":$PATH:" != *":$install_dir:"* ]]; then
         print_warning "$install_dir is not in your PATH"
         print_status "Add this line to your shell profile (~/.bashrc, ~/.zshrc, or ~/.profile):"
@@ -143,7 +125,6 @@ EOF
     fi
 }
 
-# Function to verify installation
 verify_installation() {
     print_status "Verifying installation..."
     
@@ -164,7 +145,6 @@ verify_installation() {
     fi
 }
 
-# Function to setup PATH (optional)
 setup_path() {
     local install_dir="$HOME/.local/bin"
     
@@ -192,18 +172,12 @@ setup_path() {
     fi
 }
 
-# Main installation function
 main() {
     print_status "Installing Sage CLI..."
     print_status "Platform: $(get_platform)"
-    
-    # Check prerequisites
     check_node
-    
-    # Install from GitHub
     install_from_github
     
-    # Verify installation
     if verify_installation; then
         setup_path
         print_success "Installation completed successfully!"
@@ -215,8 +189,6 @@ main() {
     fi
 }
 
-# Handle Ctrl+C
 trap 'print_error "Installation interrupted"; exit 1' INT
 
-# Run main function
 main "$@"
