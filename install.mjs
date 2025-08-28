@@ -180,7 +180,9 @@ async function installFromGithub() {
     try {
       await fs.rm(sageDir, { recursive: true, force: true });
       printStatus("Removed existing installation...");
-    } catch (e) {}
+    } catch (e) {
+      throw new Error("Failed to remove existing installation", e);
+    }
     printStatus("Downloading from GitHub...");
     const downloadUrl = `https://github.com/${REPO}/archive/main.tar.gz`;
     await downloadAndExtract(downloadUrl, tempDir);
@@ -209,7 +211,9 @@ async function installFromGithub() {
   } finally {
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
-    } catch (e) {}
+    } catch (e) {
+      console.error("Failed to remove temporary directory:", e);
+    }
   }
 }
 

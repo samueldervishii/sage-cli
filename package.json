@@ -19,6 +19,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md,mjs}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md,mjs}\"",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --max-warnings 0 --fix",
     "start": "node bin/sage.mjs"
   },
   "keywords": [
@@ -50,6 +52,8 @@
     "unzipper": "^0.12.3"
   },
   "devDependencies": {
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "eslint": "^8.57.0",
+    "@eslint/js": "^8.57.0"
   }
 }
