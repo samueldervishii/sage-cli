@@ -6,7 +6,7 @@ import chalk from "chalk";
 import inquirer from "inquirer";
 import ora from "ora";
 import SimpleChat from "./simple-chat.mjs";
-import { PATHS, TIMEOUTS } from "./constants.mjs";
+import { PATHS, TIMEOUTS } from "../constants/constants.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

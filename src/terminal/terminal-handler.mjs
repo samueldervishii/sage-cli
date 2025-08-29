@@ -2,7 +2,7 @@ import chalk from "chalk";
 import inquirer from "inquirer";
 import ora from "ora";
 import TerminalService from "./terminal-service.mjs";
-import { QUICK_COMMANDS } from "./constants.mjs";
+import { QUICK_COMMANDS } from "../constants/constants.mjs";
 
 export async function handleTerminal() {
   console.log(chalk.blue("\n⚡ Sage Terminal - Safe Command Execution"));

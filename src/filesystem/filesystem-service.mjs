@@ -206,7 +206,6 @@ class FilesystemService {
       }
 
       try {
-        // fs is now imported at the top of the file
         const stats = fs.lstatSync(resolvedPath);
         if (stats.isSymbolicLink()) {
           const linkTarget = fs.readlinkSync(resolvedPath);
@@ -223,9 +222,7 @@ class FilesystemService {
             };
           }
         }
-      } catch (error) {
-        // Unable to check symlink, continue with other checks
-      }
+      } catch (error) {}
 
       return { safe: true };
     } catch (error) {

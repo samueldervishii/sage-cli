@@ -5,17 +5,18 @@ import {
   checkForUpdates,
   showChangelog,
   performUpdate,
-} from "./github-api.mjs";
+} from "../utils/github-api.mjs";
 import {
   startConversationalChat,
   handleChat,
   showHistory,
-} from "./chat-handler.mjs";
-import { handleConfig, reloadEnvVars } from "./config-handler.mjs";
-import { cleanFiles, testEndpoint } from "./cleanup-utils.mjs";
-import { handleFilesystem } from "./filesystem-handler.mjs";
-import { handleTerminal } from "./terminal-handler.mjs";
-import SetupWizard from "./setup-wizard.mjs";
+} from "../chat/chat-handler.mjs";
+import { handleConfig, reloadEnvVars } from "../config/config-handler.mjs";
+import { cleanFiles, testEndpoint } from "../utils/cleanup-utils.mjs";
+import { handleFilesystem } from "../filesystem/filesystem-handler.mjs";
+import { handleTerminal } from "../terminal/terminal-handler.mjs";
+import SetupWizard from "../config/setup-wizard.mjs";
+import ProjectCommands from "../project/project-commands.mjs";
 
 export async function startInteractiveMode() {
   await displayBanner();
@@ -29,6 +30,19 @@ export async function startInteractiveMode() {
 
   reloadEnvVars();
 
+  const projectCommands = new ProjectCommands();
+  const projectInitialized = await projectCommands.initialize();
+
+  if (projectInitialized) {
+    const context = projectCommands.getProjectContext();
+    if (context) {
+      console.log(
+        chalk.green(`Project detected: ${context.name} (${context.type})`)
+      );
+      console.log();
+    }
+  }
+
   try {
     const updateInfo = await checkForUpdates(true);
     if (updateInfo) {
@@ -41,33 +55,44 @@ export async function startInteractiveMode() {
       );
       console.log();
     }
-  } catch (error) {
-    // Unable to check for updates, continue with menu
-  }
+  } catch (error) {}
 
   let continueMenu = true;
   while (continueMenu) {
+    const choices = [];
+
+    if (projectInitialized && projectCommands.getProjectContext()) {
+      choices.push({ name: "Project Analysis (AI-Powered)", value: "project" });
+    }
+
+    choices.push(
+      { name: "Chat Mode", value: "conversational-chat" },
+      { name: "Generate Mock Server (Quick Mode)", value: "chat" },
+      { name: "File Explorer (Filesystem)", value: "filesystem" },
+      { name: "Terminal Commands", value: "terminal" },
+      { name: "View History", value: "history" },
+      { name: "Configuration", value: "config" },
+      { name: "Version Control", value: "version-control" },
+      { name: "Clean Generated Files", value: "clean" },
+      { name: "Test Endpoint", value: "test" },
+      { name: "Exit", value: "exit" }
+    );
+
     const { action } = await inquirer.prompt([
       {
         type: "list",
         name: "action",
         message: chalk.cyan("What would you like to do?"),
-        choices: [
-          { name: "Chat Mode", value: "conversational-chat" },
-          { name: "Generate Mock Server (Quick Mode)", value: "chat" },
-          { name: "File Explorer (Filesystem)", value: "filesystem" },
-          { name: "Terminal Commands", value: "terminal" },
-          { name: "View History", value: "history" },
-          { name: "Configuration", value: "config" },
-          { name: "Version Control", value: "version-control" },
-          { name: "Clean Generated Files", value: "clean" },
-          { name: "Test Endpoint", value: "test" },
-          { name: "Exit", value: "exit" },
-        ],
+        choices: choices,
       },
     ]);
 
     switch (action) {
+      case "project":
+        if (projectInitialized) {
+          await projectCommands.handleProjectMenu();
+        }
+        break;
       case "conversational-chat":
         await startConversationalChat();
         break;

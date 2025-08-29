@@ -1,5 +1,10 @@
+const originalLog = console.log;
+console.log = () => {};
+
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config({ debug: false });
+
+console.log = originalLog;
 
 import open from "open";
 import fs from "fs-extra";

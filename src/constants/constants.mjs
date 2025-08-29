@@ -6,12 +6,12 @@ export const URLS = {
 };
 
 export const PATHS = {
-  PACKAGE: "../package.json",
-  LOGS_DIR: "../logs",
-  HISTORY_FILE: "../logs/history.json",
-  CONFIG_FILE: "../.sage.json",
-  GENERATED_DIR: "../generated",
-  GENERATOR_SCRIPT: "../lib/generate.mjs",
+  PACKAGE: "../../package.json",
+  LOGS_DIR: "../../logs",
+  HISTORY_FILE: "../../logs/history.json",
+  CONFIG_FILE: "../../.sage.json",
+  GENERATED_DIR: "../../generated",
+  GENERATOR_SCRIPT: "src/generate/generate.mjs",
 };
 
 export const TIMEOUTS = {

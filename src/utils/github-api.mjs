@@ -7,7 +7,7 @@ import chalk from "chalk";
 import axios from "axios";
 import ora from "ora";
 import inquirer from "inquirer";
-import { URLS, PATHS, TIMEOUTS } from "./constants.mjs";
+import { URLS, PATHS, TIMEOUTS } from "../constants/constants.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -250,8 +250,6 @@ export async function checkForUpdates(silent = false) {
 }
 
 export async function performUpdate() {
-  console.log(chalk.cyan("\nSage CLI Update\n"));
-
   try {
     const updateInfo = await checkForUpdates(true);
 
@@ -261,9 +259,7 @@ export async function performUpdate() {
     }
 
     console.log(
-      chalk.yellow(
-        `Updating from v${updateInfo.current} to v${updateInfo.latest}...`
-      )
+      `Updating from v${updateInfo.current} to v${updateInfo.latest}...`
     );
 
     const { confirmUpdate } = await inquirer.prompt([
@@ -276,18 +272,38 @@ export async function performUpdate() {
     ]);
 
     if (!confirmUpdate) {
-      console.log(chalk.yellow("Update cancelled."));
+      console.log("Update cancelled.");
       return;
     }
 
-    console.log(chalk.blue("\nDownloading and installing update..."));
+    const steps = [
+      "Preparing to download...",
+      "Downloading installation script...",
+      "Verifying download...",
+      "Installing update...",
+      "Cleaning up...",
+    ];
+
+    let currentStep = 0;
+    const totalSteps = steps.length;
+
+    const showProgress = (step, message, percentage = null) => {
+      const progress = Math.floor((step / totalSteps) * 100);
+      const progressBar =
+        "█".repeat(Math.floor(progress / 5)) +
+        "░".repeat(20 - Math.floor(progress / 5));
+      const percent = percentage !== null ? percentage : progress;
+      process.stdout.write(`\r[${progressBar}] ${percent}% ${message}`);
+    };
+
+    showProgress(++currentStep, steps[0]);
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     const tempDir = path.join(os.tmpdir(), "sage-update");
     const scriptPath = path.join(tempDir, "install.sh");
-
     await fs.ensureDir(tempDir);
 
-    const spinner = ora("Downloading installation script...").start();
+    showProgress(++currentStep, steps[1]);
 
     try {
       const response = await axios.get(URLS.INSTALL_SCRIPT, {
@@ -297,22 +313,16 @@ export async function performUpdate() {
         },
       });
 
+      showProgress(++currentStep, steps[2]);
       await fs.writeFile(scriptPath, response.data);
-      spinner.text = "Installation script downloaded";
-
       await fs.chmod(scriptPath, 0o755);
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      spinner.stop();
-      console.log(chalk.green("Installation script ready"));
-
-      console.log(chalk.blue("Running installation script..."));
-      console.log(
-        chalk.gray("This will update Sage CLI to the latest version.")
-      );
+      showProgress(++currentStep, steps[3]);
 
       await new Promise((resolve, reject) => {
         const child = spawn("bash", [scriptPath], {
-          stdio: "inherit",
+          stdio: ["ignore", "ignore", "pipe"],
           env: { ...process.env, SAGE_UPDATE: "true" },
         });
 
@@ -329,38 +339,34 @@ export async function performUpdate() {
         });
       });
 
-      console.log(chalk.green("\nUpdate completed successfully!"));
-      console.log(
-        chalk.cyan(`Sage CLI has been updated to v${updateInfo.latest}`)
-      );
+      showProgress(++currentStep, steps[4]);
+      await fs.remove(tempDir);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      process.stdout.write(`\r[${"█".repeat(20)}] 100% Complete!\n`);
+
+      console.log(chalk.green(`Updated to v${updateInfo.latest}`));
 
       if (updateInfo.releaseNotes.length > 0) {
-        console.log(chalk.white("\nWhat's new in this version:"));
-        updateInfo.releaseNotes.forEach(note => {
-          console.log(chalk.gray(`  • ${note}`));
+        console.log("\nWhat's new:");
+        updateInfo.releaseNotes.slice(0, 3).forEach(note => {
+          console.log(`  • ${note}`);
         });
       }
 
-      console.log(chalk.yellow("\nRestarting with new version..."));
-
-      await fs.remove(tempDir);
-
       process.exit(0);
     } catch (downloadError) {
-      spinner.stop();
+      process.stdout.write(`\rDownload failed\n`);
       console.error(
         chalk.red("Failed to download installation script:"),
         downloadError.message
       );
-      console.log(chalk.gray("\nFallback: Manual installation instructions:"));
-      console.log(chalk.cyan("Run this command to update manually:"));
-      console.log(
-        chalk.white(`bash -c "$(curl -fsSL ${URLS.INSTALL_SCRIPT})"`)
-      );
+      console.log(chalk.gray("Manual installation:"));
+      console.log(chalk.cyan(`bash -c "$(curl -fsSL ${URLS.INSTALL_SCRIPT})"`));
     }
   } catch (error) {
     console.error(chalk.red("Update failed:"), error.message);
-    console.log(chalk.gray("\nYou can try updating manually with:"));
+    console.log(chalk.gray("Manual installation:"));
     console.log(chalk.cyan(`bash -c "$(curl -fsSL ${URLS.INSTALL_SCRIPT})"`));
   }
 }

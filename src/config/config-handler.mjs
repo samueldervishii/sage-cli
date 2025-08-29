@@ -5,17 +5,22 @@ import fs from "fs-extra";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import dotenv from "dotenv";
-import { PATHS } from "./constants.mjs";
+import { PATHS } from "../constants/constants.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export function reloadEnvVars() {
-  dotenv.config({ override: true });
+  const originalLog = console.log;
+  console.log = () => {};
+
+  dotenv.config({ override: true, debug: false });
   dotenv.config({
     path: path.join(os.homedir(), ".local", "bin", "sage-cli", ".env"),
     override: true,
+    debug: false,
   });
+  console.log = originalLog;
 }
 
 export async function handleConfig() {

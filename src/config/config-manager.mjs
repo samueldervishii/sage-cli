@@ -18,9 +18,7 @@ class ConfigManager {
       if (fs.existsSync(keyFile)) {
         return fs.readFileSync(keyFile, "utf8").trim();
       }
-    } catch (error) {
-      // Key file doesn't exist or can't be read, will create new one
-    }
+    } catch (error) {}
     const key = crypto.randomBytes(32).toString("hex");
     try {
       fs.ensureDirSync(this.configDir);

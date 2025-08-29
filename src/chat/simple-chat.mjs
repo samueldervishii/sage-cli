@@ -9,10 +9,10 @@ import chalk from "chalk";
 import ora from "ora";
 import fs from "fs-extra";
 import readlineSync from "readline-sync";
-import SearchService from "./search-service.mjs";
-import FilesystemService from "./filesystem-service.mjs";
-import TerminalService from "./terminal-service.mjs";
-import ConfigManager from "./config-manager.mjs";
+import SearchService from "../utils/search-service.mjs";
+import FilesystemService from "../filesystem/filesystem-service.mjs";
+import TerminalService from "../terminal/terminal-service.mjs";
+import ConfigManager from "../config/config-manager.mjs";
 
 class SimpleChat {
   constructor() {
@@ -97,8 +97,7 @@ When executing terminal commands, only run safe operations and explain the outpu
       chalk.magenta(`
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║   Welcome to Sage Chat - Your AI Conversation Partner        ║
-║                      Created by Samuel                       ║
+║       Welcome to Sage Chat - Your AI Conversation Partner    ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 `)

@@ -5,7 +5,7 @@ import chalk from "chalk";
 import inquirer from "inquirer";
 import ora from "ora";
 import axios from "axios";
-import { PATHS, DEFAULTS } from "./constants.mjs";
+import { PATHS, DEFAULTS } from "../constants/constants.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

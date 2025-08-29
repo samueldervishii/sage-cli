@@ -9,7 +9,7 @@ import {
   BANNER_ASCII,
   DEFAULTS,
   PATHS,
-} from "./constants.mjs";
+} from "../constants/constants.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,16 +47,9 @@ export async function showVersion() {
   const packagePath = path.join(__dirname, PATHS.PACKAGE);
   const packageData = await fs.readJson(packagePath);
 
-  await displayBanner();
-  console.log();
   console.log(chalk.cyan(`Version: ${packageData.version}`));
   console.log(chalk.gray(`Node.js: ${process.version}`));
   console.log(chalk.gray(`Platform: ${process.platform} ${process.arch}`));
-
-  const buildInfo = await getBuildInfo();
-  if (buildInfo) {
-    console.log(chalk.gray(`Build: ${buildInfo.hash} (${buildInfo.date})`));
-  }
 }
 
 export async function getBuildInfo() {
