@@ -293,7 +293,7 @@ export async function performUpdate() {
         "█".repeat(Math.floor(progress / 5)) +
         "░".repeat(20 - Math.floor(progress / 5));
       const percent = percentage !== null ? percentage : progress;
-      process.stdout.write(`\r[${progressBar}] ${percent}% ${message}`);
+      process.stdout.write(`\r[${progressBar}] ${percent}% ${message}...`);
     };
 
     showProgress(++currentStep, steps[0]);
@@ -343,16 +343,36 @@ export async function performUpdate() {
       await fs.remove(tempDir);
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      process.stdout.write(`\r[${"█".repeat(20)}] 100% Complete!\n`);
+      process.stdout.write(`\r\x1b[K[${"█".repeat(20)}] 100% Complete!\n`);
 
       console.log(chalk.green(`Updated to v${updateInfo.latest}`));
 
+      // Show proper release information
+      console.log("\nWhat's new:");
+      console.log(`  • Linux/macOS:`);
+      console.log(
+        `    ${chalk.cyan('bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.sh)"')}`
+      );
+      console.log(`  • Windows (PowerShell):`);
+      console.log(
+        `    ${chalk.cyan("irm https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.ps1 | iex")}`
+      );
+      console.log(`  • Windows (Node.js):`);
+      console.log(
+        `    ${chalk.cyan("curl -o install.mjs https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.mjs && node install.mjs")}`
+      );
+
       if (updateInfo.releaseNotes.length > 0) {
-        console.log("\nWhat's new:");
+        console.log(`\nNew Features:`);
         updateInfo.releaseNotes.slice(0, 3).forEach(note => {
           console.log(`  • ${note}`);
         });
       }
+
+      console.log(`\nFull Changelog:`);
+      console.log(
+        `Full Changelog: https://github.com/samueldervishii/sage-cli/commits/v${updateInfo.latest}`
+      );
 
       process.exit(0);
     } catch (downloadError) {
