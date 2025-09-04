@@ -52,6 +52,20 @@ export async function showVersion() {
   console.log(chalk.gray(`Platform: ${process.platform} ${process.arch}`));
 }
 
+export function displayTips() {
+  const tips = [
+    "Type your questions directly - Sage will respond with AI assistance",
+    "Try '/files' for secure file exploration and management",
+    "Run 'sage setup' first to configure your API keys",
+  ];
+
+  console.log(chalk.cyan("\n Tips for getting started:\n"));
+
+  tips.forEach(tip => {
+    console.log(`  ${chalk.green("✓")} ${tip}`);
+  });
+}
+
 export async function getBuildInfo() {
   try {
     const { stdout } = await new Promise(resolve => {

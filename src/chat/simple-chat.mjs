@@ -461,6 +461,96 @@ Please provide a comprehensive answer based on this information.`;
     }
   }
 
+  async sendSingleMessage(userInput) {
+    try {
+      this.conversationHistory.push({
+        role: "user",
+        parts: [{ text: userInput }],
+        timestamp: new Date().toISOString(),
+      });
+
+      let finalInput = userInput;
+      let searchResults = null;
+      let fileResults = null;
+      let terminalResults = null;
+
+      if (FilesystemService.detectFileIntent(userInput)) {
+        const fileOp = FilesystemService.extractFileOperation(userInput);
+        try {
+          fileResults = await this.filesystemService.performOperation(fileOp);
+          const formattedResults =
+            FilesystemService.formatFileResults(fileResults);
+          console.log(formattedResults);
+          finalInput = `${userInput}\n\nFile content:\n${fileResults}`;
+        } catch (error) {
+          console.log(chalk.yellow(`File operation failed: ${error.message}`));
+        }
+      } else if (SearchService.detectSearchIntent(userInput)) {
+        const searchQuery = SearchService.extractSearchQuery(userInput);
+        try {
+          searchResults = await this.searchService.search(searchQuery);
+          const formattedResults =
+            SearchService.formatSearchResults(searchResults);
+          console.log(formattedResults);
+          finalInput = `${userInput}\nHere are current search results for "${searchQuery}":\n${searchResults.results.map(r => r.text || JSON.stringify(r)).join("\n")}\nPlease provide a comprehensive answer based on this information.`;
+        } catch (error) {
+          console.log(chalk.yellow(`Search failed: ${error.message}`));
+        }
+      } else if (TerminalService.detectTerminalIntent(userInput)) {
+        const terminalCommand = TerminalService.extractCommand(userInput);
+        try {
+          terminalResults =
+            await this.terminalService.executeCommand(terminalCommand);
+          const formattedResults =
+            TerminalService.formatTerminalResults(terminalResults);
+          console.log(formattedResults);
+          finalInput = `${userInput}\n\nTerminal output:\n${terminalResults}`;
+        } catch (error) {
+          console.log(
+            chalk.yellow(`Terminal command failed: ${error.message}`)
+          );
+        }
+      }
+
+      const spinner = ora({
+        text: chalk.blue("Sage is thinking..."),
+        spinner: "dots12",
+      }).start();
+
+      const cleanHistory = this.conversationHistory.map(msg => ({
+        role: msg.role,
+        parts: msg.parts,
+      }));
+
+      const chat = this.model.startChat({
+        history: cleanHistory,
+      });
+
+      const result = await chat.sendMessage(finalInput);
+      const response = result.response;
+      const reply = response.text();
+
+      spinner.stop();
+
+      this.conversationHistory.push({
+        role: "model",
+        parts: [{ text: reply }],
+        timestamp: new Date().toISOString(),
+        searchUsed: !!searchResults,
+        filesystemUsed: !!fileResults,
+        terminalUsed: !!terminalResults,
+      });
+
+      const formattedReply = this.formatMarkdownForTerminal(reply);
+      console.log(formattedReply);
+
+      return reply;
+    } catch (error) {
+      console.log(chalk.red("Error:"), error.message);
+      throw error;
+    }
+  }
+
   async startChat() {
     this.displayBanner();
 

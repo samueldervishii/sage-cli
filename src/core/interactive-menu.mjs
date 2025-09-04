@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import inquirer from "inquirer";
-import { displayBanner, showVersion } from "./banner.mjs";
+import { displayBanner, showVersion, displayTips } from "./banner.mjs";
 import {
   checkForUpdates,
   showChangelog,
@@ -18,8 +18,58 @@ import { handleTerminal } from "../terminal/terminal-handler.mjs";
 import SetupWizard from "../config/setup-wizard.mjs";
 import ProjectCommands from "../project/project-commands.mjs";
 
+let globalChatInstance = null;
+
+const slashCommands = [
+  { name: "/help", description: "Show Sage CLI help and information" },
+  { name: "/project", description: "AI-powered project analysis" },
+  { name: "/chat", description: "Start conversational chat mode" },
+  { name: "/generate", description: "Generate mock server from prompt" },
+  { name: "/files", description: "Secure file explorer" },
+  { name: "/terminal", description: "Terminal commands interface" },
+  { name: "/history", description: "View command history" },
+  { name: "/config", description: "Configuration settings" },
+  { name: "/clean", description: "Clean generated files" },
+  { name: "/version", description: "Version control options" },
+  { name: "/test", description: "Test endpoint functionality" },
+  { name: "/exit", description: "Exit Sage CLI" },
+];
+
+async function getClaudeCodeStyleInput() {
+  try {
+    const result = await inquirer.prompt([
+      {
+        type: "input",
+        name: "input",
+        message: "> ",
+      },
+    ]);
+
+    if (result.input.trim() === "/") {
+      const commandChoice = await inquirer.prompt([
+        {
+          type: "list",
+          name: "command",
+          message: "Select a command:",
+          choices: slashCommands.map(cmd => ({
+            name: `${chalk.yellow(cmd.name)} - ${chalk.gray(cmd.description)}`,
+            value: cmd.name,
+          })),
+          pageSize: 12,
+        },
+      ]);
+      return commandChoice.command;
+    }
+
+    return result.input;
+  } catch (error) {
+    return "";
+  }
+}
+
 export async function startInteractiveMode() {
   await displayBanner();
+  displayTips();
   console.log();
 
   const setupWizard = new SetupWizard();
@@ -31,16 +81,28 @@ export async function startInteractiveMode() {
   reloadEnvVars();
 
   const projectCommands = new ProjectCommands();
-  const projectInitialized = await projectCommands.initialize();
+  let projectInitialized = false;
 
-  if (projectInitialized) {
-    const context = projectCommands.getProjectContext();
-    if (context) {
-      console.log(
-        chalk.green(`Project detected: ${context.name} (${context.type})`)
-      );
-      console.log();
+  try {
+    const projectHandler = projectCommands.projectHandler;
+    if (projectHandler.isProjectTrusted(process.cwd())) {
+      projectInitialized = await projectCommands.initialize();
+      if (projectInitialized) {
+        const context = projectCommands.getProjectContext();
+        if (context) {
+          console.log(
+            chalk.green(`Project detected: ${context.name} (${context.type})`)
+          );
+          console.log();
+        }
+      }
     }
+  } catch (error) {
+    console.log(
+      chalk.gray(
+        "Note: Project features will require trust approval when first used."
+      )
+    );
   }
 
   try {
@@ -57,80 +119,163 @@ export async function startInteractiveMode() {
     }
   } catch (error) {}
 
-  let continueMenu = true;
-  while (continueMenu) {
-    const choices = [];
-
-    if (projectInitialized && projectCommands.getProjectContext()) {
-      choices.push({ name: "Project Analysis (AI-Powered)", value: "project" });
-    }
-
-    choices.push(
-      { name: "Chat Mode", value: "conversational-chat" },
-      { name: "Generate Mock Server (Quick Mode)", value: "chat" },
-      { name: "File Explorer (Filesystem)", value: "filesystem" },
-      { name: "Terminal Commands", value: "terminal" },
-      { name: "View History", value: "history" },
-      { name: "Configuration", value: "config" },
-      { name: "Version Control", value: "version-control" },
-      { name: "Clean Generated Files", value: "clean" },
-      { name: "Test Endpoint", value: "test" },
-      { name: "Exit", value: "exit" }
+  try {
+    const SimpleChat = (await import("../chat/simple-chat.mjs")).default;
+    globalChatInstance = new SimpleChat();
+    await globalChatInstance.initialize();
+  } catch (error) {
+    console.log(
+      chalk.yellow(
+        "Chat functionality unavailable. Run 'sage setup' to configure API keys."
+      )
     );
+  }
 
-    const { action } = await inquirer.prompt([
-      {
-        type: "list",
-        name: "action",
-        message: chalk.cyan("What would you like to do?"),
-        choices: choices,
-      },
-    ]);
+  console.log(
+    chalk.gray("  Type '/' and press enter for command menu or chat directly\n")
+  );
 
-    switch (action) {
-      case "project":
-        if (projectInitialized) {
-          await projectCommands.handleProjectMenu();
-        }
-        break;
-      case "conversational-chat":
-        await startConversationalChat();
-        break;
-      case "chat":
-        await handleChat();
-        break;
-      case "filesystem":
-        await handleFilesystem();
-        break;
-      case "terminal":
-        await handleTerminal();
-        break;
-      case "history":
-        await showHistory();
-        break;
-      case "config":
-        await handleConfig();
-        break;
-      case "version-control":
-        await handleVersionControl();
-        break;
-      case "clean":
-        await cleanFiles();
-        break;
-      case "test":
-        await testEndpoint();
-        break;
-      case "exit":
-        console.log(
-          chalk.magenta("\nThanks for using Sage! See you next time!")
-        );
-        continueMenu = false;
-        break;
+  let continueSession = true;
+  while (continueSession) {
+    const input = await getClaudeCodeStyleInput();
+
+    if (!input.trim()) {
+      continue;
     }
 
-    console.log();
+    if (input.startsWith("/")) {
+      continueSession = await handleSlashCommand(
+        input.trim(),
+        projectCommands,
+        projectInitialized
+      );
+    } else {
+      await handleChatMessage(input.trim());
+    }
+
+    console.log("\n");
   }
   process.exit(0);
+}
+
+async function handleSlashCommand(
+  command,
+  projectCommands,
+  projectInitialized
+) {
+  const cmd = command.toLowerCase();
+
+  switch (cmd) {
+    case "/help":
+      console.log(
+        chalk.cyan(`
+Sage CLI v0.5.0-beta
+
+Always review Sage's responses, especially when running commands. Sage can analyze your code, 
+generate content, and help with development tasks through AI assistance.
+
+Usage Modes:
+• REPL: sage (interactive session)
+• Commands: sage --help (show options)
+
+Common Tasks:
+• Ask questions about your code > How does this function work?
+• Generate mock servers > /generate "REST API for users"
+• Explore project structure > /project
+• Browse files securely > /files
+• Run terminal commands > /terminal
+
+Interactive Mode Commands:
+  /help - Show this help information
+  /project - AI-powered project analysis and insights
+  /chat - Start conversational chat mode with context
+  /generate - Generate mock servers from prompts
+  /files - Secure file explorer with permissions
+  /terminal - Terminal commands interface
+  /history - View command and conversation history
+  /config - Configuration settings and API keys
+  /clean - Clean generated files and temporary data
+  /version - Version control options and updates
+  /test - Test endpoint functionality
+  /exit - Exit Sage CLI
+      `)
+      );
+      break;
+
+    case "/project":
+      if (projectInitialized) {
+        await projectCommands.handleProjectMenu();
+      } else {
+        console.log(chalk.yellow("No project detected in current directory"));
+      }
+      break;
+
+    case "/chat":
+      await startConversationalChat();
+      break;
+
+    case "/generate":
+      await handleChat();
+      break;
+
+    case "/files":
+      await handleFilesystem();
+      break;
+
+    case "/terminal":
+      await handleTerminal();
+      break;
+
+    case "/history":
+      await showHistory();
+      break;
+
+    case "/config":
+      await handleConfig();
+      break;
+
+    case "/clean":
+      await cleanFiles();
+      break;
+
+    case "/version":
+      await handleVersionControl();
+      break;
+
+    case "/test":
+      await testEndpoint();
+      break;
+
+    case "/exit":
+      console.log(chalk.magenta("\nThanks for using Sage! See you next time!"));
+      return false;
+
+    default:
+      console.log(chalk.red(`Unknown command: ${command}`));
+      console.log(chalk.gray("Type /help to see available commands"));
+  }
+
+  return true;
+}
+
+async function handleChatMessage(message) {
+  try {
+    if (!globalChatInstance) {
+      console.log(
+        chalk.red(
+          "Chat functionality is not available. Run 'sage setup' to configure API keys."
+        )
+      );
+      return;
+    }
+
+    await globalChatInstance.sendSingleMessage(message);
+  } catch (error) {
+    console.log(chalk.red("Error processing message:"), error.message);
+    if (error.message.includes("GEMINI_API_KEY")) {
+      console.log(chalk.yellow("Run 'sage setup' to configure your API keys"));
+    }
+  }
 }
 
 export async function handleVersionControl() {
