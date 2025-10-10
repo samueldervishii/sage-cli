@@ -3,15 +3,11 @@ import { spawn } from "child_process";
 import path from "path";
 import chalk from "chalk";
 import { displayBanner, showVersion, displayTips } from "./banner.mjs";
-import { showChangelog, performUpdate } from "../utils/github-api.mjs";
-import { showHistory, savePromptHistory } from "../chat/chat-handler.mjs";
-import { handleFilesystem } from "../filesystem/filesystem-handler.mjs";
-import { cleanFiles } from "../utils/cleanup-utils.mjs";
+import { performUpdate } from "../utils/github-api.mjs";
+import { savePromptHistory } from "../chat/chat-handler.mjs";
 import { startInteractiveMode } from "./interactive-menu.mjs";
 import { reloadEnvVars } from "../config/config-handler.mjs";
-import SimpleChat from "../chat/simple-chat.mjs";
 import SetupWizard from "../config/setup-wizard.mjs";
-import ProjectCommands from "../project/project-commands.mjs";
 import { PATHS } from "../constants/constants.mjs";
 
 const __filename = fileURLToPath(import.meta.url);

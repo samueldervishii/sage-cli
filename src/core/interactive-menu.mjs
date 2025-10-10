@@ -62,7 +62,7 @@ async function getClaudeCodeStyleInput() {
     }
 
     return result.input;
-  } catch (error) {
+  } catch {
     return "";
   }
 }
@@ -97,7 +97,7 @@ export async function startInteractiveMode() {
         }
       }
     }
-  } catch (error) {
+  } catch {
     console.log(
       chalk.gray(
         "Note: Project features will require trust approval when first used."
@@ -117,13 +117,15 @@ export async function startInteractiveMode() {
       );
       console.log();
     }
-  } catch (error) {}
+  } catch {
+    // Ignore errors
+  }
 
   try {
     const SimpleChat = (await import("../chat/simple-chat.mjs")).default;
     globalChatInstance = new SimpleChat();
     await globalChatInstance.initialize();
-  } catch (error) {
+  } catch {
     console.log(
       chalk.yellow(
         "Chat functionality unavailable. Run 'sage setup' to configure API keys."

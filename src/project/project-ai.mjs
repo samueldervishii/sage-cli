@@ -317,7 +317,7 @@ Please provide a helpful answer based on the project context. If you need to ref
   formatResponse(text) {
     if (!text) return "";
 
-    let formatted = text
+    const formatted = text
       .replace(/\*\*([^*]+)\*\*/g, (_, content) => chalk.cyan.bold(content))
       .replace(
         /\*\*(\d+\.\s+[^*]+):\*\*/g,

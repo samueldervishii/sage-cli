@@ -56,7 +56,7 @@ export function parseChangelogFromBody(body) {
     try {
       const parsedContent = JSON.parse(`"${jsonStringMatch[1]}"`);
       processedBody = body + "\n\n" + parsedContent;
-    } catch (e) {
+    } catch {
       processedBody = body;
     }
   }

@@ -32,7 +32,7 @@ class SetupWizard {
         hasGeminiKey,
         hasSerperKey,
       };
-    } catch (error) {
+    } catch {
       return {
         exists: false,
         hasGeminiKey: false,

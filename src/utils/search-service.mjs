@@ -221,7 +221,7 @@ class SearchService {
             }
             formatted += "\n";
           }
-        } catch (e) {
+        } catch {
           const lines = result.text.split("\n");
           lines.forEach(line => {
             if (line.trim()) {

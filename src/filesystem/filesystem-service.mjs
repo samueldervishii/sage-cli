@@ -222,10 +222,12 @@ class FilesystemService {
             };
           }
         }
-      } catch (error) {}
+      } catch {
+        // If lstatSync fails, we assume the path does not exist yet (e.g., for write operations)
+      }
 
       return { safe: true };
-    } catch (error) {
+    } catch {
       return { safe: false, reason: "Invalid path format" };
     }
   }
@@ -257,7 +259,7 @@ class FilesystemService {
         try {
           await fs.promises.access(dir, fs.constants.F_OK);
           allowedDirs.push(dir);
-        } catch (error) {
+        } catch {
           continue;
         }
       }

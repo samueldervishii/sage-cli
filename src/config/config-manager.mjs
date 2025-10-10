@@ -18,13 +18,15 @@ class ConfigManager {
       if (fs.existsSync(keyFile)) {
         return fs.readFileSync(keyFile, "utf8").trim();
       }
-    } catch (error) {}
+    } catch {
+      // Ignore read errors
+    }
     const key = crypto.randomBytes(32).toString("hex");
     try {
       fs.ensureDirSync(this.configDir);
       fs.writeFileSync(keyFile, key, { mode: 0o600 });
       return key;
-    } catch (error) {
+    } catch {
       console.warn(
         chalk.yellow("Warning: Could not create encryption key file")
       );
@@ -39,7 +41,7 @@ class ConfigManager {
       let encrypted = cipher.update(text, "utf8", "hex");
       encrypted += cipher.final("hex");
       return encrypted;
-    } catch (error) {
+    } catch {
       console.warn(chalk.yellow("Warning: Encryption failed, storing plain"));
       return text;
     }
@@ -52,7 +54,7 @@ class ConfigManager {
       let decrypted = decipher.update(encryptedText, "hex", "utf8");
       decrypted += decipher.final("utf8");
       return decrypted;
-    } catch (error) {
+    } catch {
       return encryptedText;
     }
   }
@@ -218,7 +220,7 @@ class ConfigManager {
     try {
       const config = await this.loadConfig();
       return !!(config.apiKeys?.gemini || config.apiKeys?.openai);
-    } catch (error) {
+    } catch {
       return false;
     }
   }

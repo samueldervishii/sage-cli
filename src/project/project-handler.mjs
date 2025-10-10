@@ -31,7 +31,7 @@ export class ProjectHandler {
       if (await fs.pathExists(this.settingsPath)) {
         this.trustedProjects = await fs.readJson(this.settingsPath);
       }
-    } catch (error) {
+    } catch {
       this.trustedProjects = [];
     }
   }
@@ -313,7 +313,9 @@ export class ProjectHandler {
           structure.structure[item] = "file";
         }
       }
-    } catch (error) {}
+    } catch {
+      // Ignore errors
+    }
   }
 
   isMainFile(filename) {
@@ -361,7 +363,7 @@ export class ProjectHandler {
 
       cache[projectPath] = analysis;
       await fs.writeJson(this.indexPath, cache, { spaces: 2 });
-    } catch (error) {
+    } catch {
       console.error(chalk.yellow("Warning: Failed to cache project analysis"));
     }
   }
@@ -430,7 +432,7 @@ export class ProjectHandler {
 
         child.on("error", () => resolve(null));
       });
-    } catch (error) {
+    } catch {
       return null;
     }
   }

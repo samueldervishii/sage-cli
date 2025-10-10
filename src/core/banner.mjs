@@ -108,7 +108,7 @@ export async function getBuildInfo() {
         date: dateOutput || "unknown",
       };
     }
-  } catch (error) {
+  } catch {
     return null;
   }
   return null;
