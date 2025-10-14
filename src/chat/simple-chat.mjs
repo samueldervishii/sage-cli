@@ -39,7 +39,7 @@ class SimpleChat {
     this.terminalService = new TerminalService();
 
     this.setupSystemPrompt();
-    this.ensureConversationsDir();
+    await this.ensureConversationsDir();
   }
 
   setupSystemPrompt() {
@@ -172,7 +172,7 @@ Tips:
     );
   }
 
-  handleCommand(input) {
+  async handleCommand(input) {
     const command = input.trim().toLowerCase();
 
     switch (command) {
@@ -190,18 +190,18 @@ Tips:
         return true;
 
       case "save":
-        this.saveConversation();
+        await this.saveConversation();
         console.log(
           chalk.green(`Conversation saved! Session ID: ${this.sessionId}`)
         );
         return true;
 
       case "export":
-        this.exportConversation();
+        await this.exportConversation();
         return true;
 
       case "exit":
-        this.saveConversation();
+        await this.saveConversation();
         console.log(
           chalk.magenta(
             "\nThanks for chatting with Sage! Your conversation has been saved."
@@ -210,7 +210,7 @@ Tips:
         return "exit";
 
       case "menu":
-        this.saveConversation();
+        await this.saveConversation();
         console.log(
           chalk.cyan(
             "\nReturning to main menu... Your conversation has been saved."
@@ -592,7 +592,7 @@ Please provide a comprehensive answer based on this information.`;
           continue;
         }
 
-        const commandResult = this.handleCommand(input);
+        const commandResult = await this.handleCommand(input);
         if (commandResult === "exit") {
           await gracefulExit();
           continueChat = false;

@@ -12,6 +12,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { spawn } from "child_process";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import logger from "../utils/logger.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,22 +36,76 @@ if (!userPrompt) {
   process.exit(1);
 }
 
+if (!process.env.GEMINI_API_KEY) {
+  console.error("Error: GEMINI_API_KEY not found in environment variables.");
+  console.error(
+    "Please add your API key to the .env file or run 'sage setup' to configure."
+  );
+  process.exit(1);
+}
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
 (async () => {
   try {
+    logger.info("Starting mock server generation", { prompt: userPrompt });
     console.log("Generating mock server...");
+
     const prompt = `Generate only raw, runnable Express.js code using ESM import syntax (no require or module.exports). Do not include markdown formatting or code blocks. The code should be ready to run as-is. Instruction: ${userPrompt}`;
 
+    logger.debug("Sending request to AI", { model: "gemini-2.0-flash-exp" });
     const result = await model.generateContent(prompt);
     const response = result.response;
     const reply = response.text();
-    console.log("AI response received, processing code...");
 
-    if (!reply || reply.length < 40 || !reply.includes("express")) {
-      console.error("Invalid or incomplete code response.");
-      return;
+    console.log("AI response received, processing code...");
+    logger.debug("AI response received", { length: reply?.length });
+
+    // Improved code validation
+    if (!reply || typeof reply !== "string") {
+      const error = new Error("No response received from AI");
+      logger.error("Code generation failed", error);
+      console.error("Error: No response received from AI.");
+      process.exit(1);
+    }
+
+    if (reply.length < 40) {
+      const error = new Error("Response too short to be valid code");
+      logger.error("Code validation failed", error);
+      console.error("Error: Response too short to be valid code.");
+      process.exit(1);
+    }
+
+    // Check for Express.js indicators
+    const hasExpress =
+      reply.includes("express") ||
+      reply.includes("Express") ||
+      reply.includes("app.listen");
+
+    // Check for common code structures
+    const hasCodeStructure =
+      reply.includes("import") ||
+      reply.includes("require") ||
+      reply.includes("function") ||
+      reply.includes("const") ||
+      reply.includes("let");
+
+    if (!hasExpress || !hasCodeStructure) {
+      const error = new Error(
+        "Generated response is not valid Express.js code"
+      );
+      logger.error("Code validation failed", {
+        error,
+        hasExpress,
+        hasCodeStructure,
+        preview: reply.substring(0, 200),
+      });
+      console.error(
+        "Error: Generated response doesn't appear to be valid Express.js code."
+      );
+      console.error("Response preview:", reply.substring(0, 200));
+      process.exit(1);
     }
 
     let cleanCode = reply
@@ -85,6 +140,9 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     await initializeGitRepo(fileDir, fileName, userPrompt);
 
+    logger.success("Mock server generated successfully");
+    logger.info("Generated file details", { fileName, fullPath });
+
     console.log(`\nMock server generated successfully!`);
     console.log(`File: ${fileName}`);
     console.log(`Location: ${fullPath}`);
@@ -99,15 +157,38 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     console.log(`Press Ctrl+C to stop the server when running`);
 
     if (config.editor) {
+      logger.debug("Opening file in editor", {
+        editor: config.editor,
+        path: fullPath,
+      });
       await open(fullPath, { app: { name: config.editor } });
     }
   } catch (err) {
+    logger.error("Mock server generation failed", err);
     console.error("Error occurred:", err.message);
+
     if (err.message.includes("API_KEY")) {
       console.error(
         "Please make sure your GEMINI_API_KEY is set in your .env file"
       );
+      logger.warn("API key issue detected");
+    } else if (
+      err.message.includes("overloaded") ||
+      err.message.includes("503")
+    ) {
+      console.error(
+        "The AI service is currently busy. Please try again later."
+      );
+      logger.warn("AI service overloaded");
+    } else if (err.code === "EACCES") {
+      console.error("Permission denied. Check file/directory permissions.");
+      logger.error("Permission error", { code: err.code });
+    } else if (err.code === "ENOSPC") {
+      console.error("Disk space full. Free up some space and try again.");
+      logger.error("Disk space error", { code: err.code });
     }
+
+    process.exit(1);
   }
 })();
 

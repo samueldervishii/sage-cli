@@ -33,15 +33,15 @@ class TerminalService {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
-      let _output = "";
-      let _error = "";
+      let output = "";
+      let error = "";
 
       installProcess.stdout.on("data", data => {
-        _output += data.toString();
+        output += data.toString();
       });
 
       installProcess.stderr.on("data", data => {
-        _error += data.toString();
+        error += data.toString();
       });
 
       installProcess.on("close", code => {
@@ -49,11 +49,13 @@ class TerminalService {
           console.log(
             chalk.green("Terminal MCP server installed successfully")
           );
+          if (output) console.log(chalk.gray(output.trim()));
           resolve();
         } else {
           console.log(
             chalk.yellow("Pip install failed, trying alternative...")
           );
+          if (error) console.log(chalk.gray("Error:", error.trim()));
           resolve();
         }
       });
@@ -131,11 +133,12 @@ class TerminalService {
       return { valid: false, reason: "Command too long" };
     }
 
+    // Check for null bytes and other dangerous control characters
     if (
       command.includes("\x00") ||
-      false // Removed problematic control character regex
+      /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(command)
     ) {
-      return { valid: false, reason: "Invalid characters detected" };
+      return { valid: false, reason: "Invalid control characters detected" };
     }
 
     const lowerCommand = command.toLowerCase().trim();
@@ -305,23 +308,23 @@ class TerminalService {
         },
       });
 
-      let _output = "";
-      let _error = "";
+      let output = "";
+      let error = "";
 
       childProcess.stdout.on("data", data => {
-        _output += data.toString();
+        output += data.toString();
       });
 
       childProcess.stderr.on("data", data => {
-        _error += data.toString();
+        error += data.toString();
       });
 
       childProcess.on("close", code => {
         resolve({
           command,
           exitCode: code,
-          output: _output.trim(),
-          error: _error.trim(),
+          output: output.trim(),
+          error: error.trim(),
           success: code === 0,
         });
       });

@@ -10,6 +10,8 @@ class FilesystemService {
     this.client = null;
     this.transport = null;
     this.isConnected = false;
+    this.connectionAttempts = 0;
+    this.maxRetries = 2;
 
     this.restrictedPaths = [
       "/boot", // Boot loader files
@@ -222,13 +224,18 @@ class FilesystemService {
             };
           }
         }
-      } catch {
-        // If lstatSync fails, we assume the path does not exist yet (e.g., for write operations)
+      } catch (error) {
+        // If lstatSync fails, path doesn't exist yet (e.g., for write operations)
+        // This is acceptable for new file creation
+        console.log(
+          chalk.gray(`Path check: ${resolvedPath} does not exist yet`)
+        );
       }
 
       return { safe: true };
-    } catch {
-      return { safe: false, reason: "Invalid path format" };
+    } catch (error) {
+      console.error(chalk.red("Path validation error:"), error.message);
+      return { safe: false, reason: `Invalid path format: ${error.message}` };
     }
   }
 
@@ -237,7 +244,20 @@ class FilesystemService {
       return true;
     }
 
-    const spinner = ora("Connecting to filesystem service...").start();
+    // Check retry limit
+    if (this.connectionAttempts >= this.maxRetries) {
+      console.error(
+        chalk.red(
+          `Failed to connect after ${this.maxRetries} attempts. Please install @modelcontextprotocol/server-filesystem manually.`
+        )
+      );
+      return false;
+    }
+
+    this.connectionAttempts++;
+    const spinner = ora(
+      `Connecting to filesystem service (attempt ${this.connectionAttempts}/${this.maxRetries})...`
+    ).start();
 
     try {
       const fs = await import("fs");
@@ -284,38 +304,52 @@ class FilesystemService {
 
       await this.client.connect(this.transport);
       this.isConnected = true;
+      this.connectionAttempts = 0; // Reset on success
 
       spinner.succeed("Connected to filesystem service");
       return true;
     } catch (error) {
       spinner.fail("Failed to connect to filesystem service");
       console.error(chalk.red("Filesystem service error:"), error.message);
-      console.log(chalk.yellow("Installing filesystem MCP server..."));
 
-      try {
-        const { spawn } = await import("child_process");
-        await new Promise((resolve, reject) => {
-          const install = spawn(
-            "npm",
-            ["install", "-g", "@modelcontextprotocol/server-filesystem"],
-            {
-              stdio: "inherit",
-            }
-          );
-          install.on("close", code => {
-            if (code === 0) resolve();
-            else reject(new Error(`Installation failed with code ${code}`));
-          });
-        });
-
+      // Only attempt installation if we have retries left
+      if (this.connectionAttempts < this.maxRetries) {
         console.log(
-          chalk.green("Filesystem MCP server installed successfully")
+          chalk.yellow("Attempting to install filesystem MCP server...")
         );
-        return await this.connect();
-      } catch (installError) {
+
+        try {
+          const { spawn } = await import("child_process");
+          await new Promise((resolve, reject) => {
+            const install = spawn(
+              "npm",
+              ["install", "-g", "@modelcontextprotocol/server-filesystem"],
+              {
+                stdio: "inherit",
+              }
+            );
+            install.on("close", code => {
+              if (code === 0) resolve();
+              else reject(new Error(`Installation failed with code ${code}`));
+            });
+          });
+
+          console.log(
+            chalk.green("Filesystem MCP server installed successfully")
+          );
+          return await this.connect(); // Recursive call will check retry limit
+        } catch (installError) {
+          console.error(
+            chalk.red("Failed to install filesystem MCP server:"),
+            installError.message
+          );
+          return false;
+        }
+      } else {
         console.error(
-          chalk.red("Failed to install filesystem MCP server:"),
-          installError.message
+          chalk.red(
+            "Maximum connection attempts reached. Please install @modelcontextprotocol/server-filesystem manually."
+          )
         );
         return false;
       }

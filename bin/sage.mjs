@@ -18,4 +18,21 @@ console.log = originalLog;
 import { parseAndExecuteCommand } from "../src/core/command-parser.mjs";
 
 const args = process.argv.slice(2);
-parseAndExecuteCommand(args).catch(console.error);
+
+parseAndExecuteCommand(args).catch(error => {
+  console.error("Error:", error.message);
+
+  // Exit with appropriate error code
+  if (error.code === "ENOENT") {
+    process.exit(127); // Command not found
+  } else if (error.code === "EACCES") {
+    process.exit(126); // Permission denied
+  } else if (
+    error.message.includes("API_KEY") ||
+    error.message.includes("configuration")
+  ) {
+    process.exit(78); // Configuration error
+  } else {
+    process.exit(1); // General error
+  }
+});

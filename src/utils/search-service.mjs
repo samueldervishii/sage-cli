@@ -221,7 +221,13 @@ class SearchService {
             }
             formatted += "\n";
           }
-        } catch {
+        } catch (error) {
+          // JSON parse failed, treat as plain text
+          console.log(
+            chalk.gray(
+              `Search result formatting: Plain text mode for result ${index + 1}`
+            )
+          );
           const lines = result.text.split("\n");
           lines.forEach(line => {
             if (line.trim()) {
