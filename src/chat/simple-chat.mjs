@@ -37,6 +37,8 @@ class SimpleChat {
     this.searchService = new SearchService();
     this.filesystemService = new FilesystemService();
     this.terminalService = new TerminalService();
+    this.saveInProgress = false; // Prevent concurrent saves
+    this.signalHandlersRegistered = false; // Track signal handler registration
 
     this.setupSystemPrompt();
     await this.ensureConversationsDir();
@@ -79,17 +81,30 @@ When executing terminal commands, only run safe operations and explain the outpu
   }
 
   async saveConversation() {
-    const conversationPath = path.join(
-      this.conversationsDir,
-      `session-${this.sessionId}.json`
-    );
-    const conversationData = {
-      sessionId: this.sessionId,
-      startTime: this.sessionId,
-      lastMessage: new Date().toISOString(),
-      messages: this.conversationHistory.slice(1),
-    };
-    await fs.writeJson(conversationPath, conversationData, { spaces: 2 });
+    // Prevent concurrent saves
+    if (this.saveInProgress) {
+      if (process.env.DEBUG) {
+        console.log(chalk.gray("Debug: Save already in progress, skipping..."));
+      }
+      return;
+    }
+
+    try {
+      this.saveInProgress = true;
+      const conversationPath = path.join(
+        this.conversationsDir,
+        `session-${this.sessionId}.json`
+      );
+      const conversationData = {
+        sessionId: this.sessionId,
+        startTime: this.sessionId,
+        lastMessage: new Date().toISOString(),
+        messages: this.conversationHistory.slice(1),
+      };
+      await fs.writeJson(conversationPath, conversationData, { spaces: 2 });
+    } finally {
+      this.saveInProgress = false;
+    }
   }
 
   displayBanner() {
@@ -244,9 +259,15 @@ Tips:
 
     this.conversationHistory.slice(1).forEach((message, index) => {
       const role = message.role === "user" ? "You" : "Sage";
-      const content =
-        message.parts[0].text.substring(0, 100) +
-        (message.parts[0].text.length > 100 ? "..." : "");
+
+      // Safely access message parts with bounds checking
+      let content = "[No content]";
+      if (message.parts && message.parts.length > 0 && message.parts[0].text) {
+        content =
+          message.parts[0].text.substring(0, 100) +
+          (message.parts[0].text.length > 100 ? "..." : "");
+      }
+
       const timestamp = message.timestamp
         ? new Date(message.timestamp).toLocaleTimeString()
         : "";
@@ -546,6 +567,9 @@ Please provide a comprehensive answer based on this information.`;
 
       return reply;
     } catch (error) {
+      if (spinner && spinner.isSpinning) {
+        spinner.stop();
+      }
       console.log(chalk.red("Error:"), error.message);
       throw error;
     }
@@ -577,8 +601,12 @@ Please provide a comprehensive answer based on this information.`;
       process.exit(0);
     };
 
-    process.on("SIGINT", gracefulExit);
-    process.on("SIGTERM", gracefulExit);
+    // Register signal handlers only once to prevent duplicate handlers
+    if (!this.signalHandlersRegistered) {
+      process.on("SIGINT", gracefulExit);
+      process.on("SIGTERM", gracefulExit);
+      this.signalHandlersRegistered = true;
+    }
 
     let continueChat = true;
     while (continueChat) {

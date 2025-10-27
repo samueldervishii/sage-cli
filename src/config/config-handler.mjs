@@ -6,11 +6,12 @@ import chalk from "chalk";
 import inquirer from "inquirer";
 import dotenv from "dotenv";
 import { PATHS } from "../constants/constants.mjs";
+import ConfigManager from "./config-manager.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function reloadEnvVars() {
+export async function reloadEnvVars() {
   const originalLog = console.log;
   console.log = () => {};
 
@@ -20,6 +21,27 @@ export function reloadEnvVars() {
     override: true,
     debug: false,
   });
+
+  // Load API keys from ConfigManager into environment
+  try {
+    const configManager = new ConfigManager();
+    const config = await configManager.loadConfig();
+
+    if (config.apiKeys) {
+      if (config.apiKeys.gemini && !process.env.GEMINI_API_KEY) {
+        process.env.GEMINI_API_KEY = config.apiKeys.gemini;
+      }
+      if (config.apiKeys.openai && !process.env.OPENAI_API_KEY) {
+        process.env.OPENAI_API_KEY = config.apiKeys.openai;
+      }
+      if (config.apiKeys.serper && !process.env.SERPER_API_KEY) {
+        process.env.SERPER_API_KEY = config.apiKeys.serper;
+      }
+    }
+  } catch (error) {
+    // Silently fail if config doesn't exist yet
+  }
+
   console.log = originalLog;
 }
 

@@ -4,6 +4,8 @@ import chalk from "chalk";
 import ora from "ora";
 import path from "path";
 import fs from "fs";
+import os from "os";
+import { RETRY_LIMITS, TIMEOUTS } from "../constants/constants.mjs";
 
 class FilesystemService {
   constructor() {
@@ -11,7 +13,7 @@ class FilesystemService {
     this.transport = null;
     this.isConnected = false;
     this.connectionAttempts = 0;
-    this.maxRetries = 2;
+    this.maxRetries = RETRY_LIMITS.MCP_CONNECTION;
 
     this.restrictedPaths = [
       "/boot", // Boot loader files
@@ -284,7 +286,9 @@ class FilesystemService {
         }
       }
 
-      if (!allowedDirs.includes("/home")) allowedDirs.push("/home");
+      // Add user's home directory (cross-platform)
+      const userHome = os.homedir();
+      if (!allowedDirs.includes(userHome)) allowedDirs.push(userHome);
       if (!allowedDirs.includes(process.cwd())) allowedDirs.push(process.cwd());
 
       this.transport = new StdioClientTransport({
@@ -302,7 +306,16 @@ class FilesystemService {
         version: "1.1.0",
       });
 
-      await this.client.connect(this.transport);
+      // Add timeout to connection attempt
+      await Promise.race([
+        this.client.connect(this.transport),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Connection timeout")),
+            TIMEOUTS.MCP_CONNECTION
+          )
+        ),
+      ]);
       this.isConnected = true;
       this.connectionAttempts = 0; // Reset on success
 
@@ -320,19 +333,28 @@ class FilesystemService {
 
         try {
           const { spawn } = await import("child_process");
-          await new Promise((resolve, reject) => {
-            const install = spawn(
-              "npm",
-              ["install", "-g", "@modelcontextprotocol/server-filesystem"],
-              {
-                stdio: "inherit",
-              }
-            );
-            install.on("close", code => {
-              if (code === 0) resolve();
-              else reject(new Error(`Installation failed with code ${code}`));
-            });
-          });
+          await Promise.race([
+            new Promise((resolve, reject) => {
+              const install = spawn(
+                "npm",
+                ["install", "-g", "@modelcontextprotocol/server-filesystem"],
+                {
+                  stdio: "inherit",
+                }
+              );
+              install.on("close", code => {
+                if (code === 0) resolve();
+                else reject(new Error(`Installation failed with code ${code}`));
+              });
+              install.on("error", err => reject(err));
+            }),
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Installation timeout")),
+                TIMEOUTS.MCP_INSTALL
+              )
+            ),
+          ]);
 
           console.log(
             chalk.green("Filesystem MCP server installed successfully")

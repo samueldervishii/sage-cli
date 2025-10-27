@@ -28,7 +28,7 @@ export async function cleanFiles() {
   }
 
   const genDir = path.join(__dirname, PATHS.GENERATED_DIR);
-  const logsDir = path.join(__dirname, PATHS.HISTORY_FILE);
+  const logsDir = path.join(__dirname, PATHS.LOGS_DIR);
 
   const spinner = ora("Cleaning files...").start();
 

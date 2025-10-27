@@ -62,7 +62,12 @@ async function getClaudeCodeStyleInput() {
     }
 
     return result.input;
-  } catch {
+  } catch (error) {
+    // User cancelled input (Ctrl+C) - return empty to signal exit
+    if (error.message && error.message.includes("User force closed")) {
+      return "";
+    }
+    console.error(chalk.red("Input error:"), error.message);
     return "";
   }
 }
@@ -78,7 +83,7 @@ export async function startInteractiveMode() {
     return;
   }
 
-  reloadEnvVars();
+  await reloadEnvVars();
 
   const projectCommands = new ProjectCommands();
   let projectInitialized = false;
@@ -117,8 +122,14 @@ export async function startInteractiveMode() {
       );
       console.log();
     }
-  } catch {
-    // Ignore errors
+  } catch (error) {
+    // Silently ignore update check errors (network issues are common)
+    // Only log if in debug mode
+    if (process.env.DEBUG) {
+      console.error(
+        chalk.gray(`Debug: Update check failed - ${error.message}`)
+      );
+    }
   }
 
   try {

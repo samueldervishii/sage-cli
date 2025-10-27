@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import chalk from "chalk";
+import { TIMEOUTS } from "../constants/constants.mjs";
 
 class TerminalService {
   constructor() {
@@ -214,17 +215,25 @@ class TerminalService {
       }
     }
 
+    // Comprehensive injection pattern checking
     const injectionPatterns = [
-      /[;&|`$(){}[\]]/,
-      /<|>/,
-      /\*\*/,
-      /^\s*\./,
-      /\.\.\//,
+      { pattern: /[;&|`$(){}[\]\\]/, desc: "Shell metacharacters" },
+      { pattern: /<|>/, desc: "Redirection operators" },
+      { pattern: /\*\*/, desc: "Globstar pattern" },
+      { pattern: /^\s*\./, desc: "Dotfile execution" },
+      { pattern: /\.\.\//, desc: "Directory traversal" },
+      { pattern: /\x00/, desc: "Null byte" },
+      { pattern: /[\r\n]/, desc: "Line break injection" },
+      { pattern: /~\//, desc: "Home directory expansion" },
+      { pattern: /\$\{/, desc: "Variable expansion" },
     ];
 
-    for (const pattern of injectionPatterns) {
+    for (const { pattern, desc } of injectionPatterns) {
       if (pattern.test(command)) {
-        return { valid: false, reason: "Command injection attempt detected" };
+        return {
+          valid: false,
+          reason: `Command injection attempt detected: ${desc}`,
+        };
       }
     }
 
@@ -284,20 +293,37 @@ class TerminalService {
 
   async executeDirectCommand(command) {
     return new Promise((resolve, reject) => {
-      const validation = this.validateCommand(command);
+      // Sanitize command: remove null bytes and other dangerous characters
+      const sanitized = command
+        .replace(/\x00/g, "") // Remove null bytes
+        .replace(/[\x01-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, "") // Remove other control characters
+        .trim();
+
+      if (!sanitized || sanitized !== command.trim()) {
+        reject(new Error("Command contains invalid characters"));
+        return;
+      }
+
+      const validation = this.validateCommand(sanitized);
       if (!validation.valid) {
         reject(new Error(`Command blocked: ${validation.reason}`));
         return;
       }
 
-      const parts = command.trim().split(/\s+/);
+      // More robust command parsing
+      const parts = sanitized.split(/\s+/).filter(part => part.length > 0);
+      if (parts.length === 0) {
+        reject(new Error("Empty command"));
+        return;
+      }
+
       const cmd = parts[0];
       const args = parts.slice(1);
 
       const childProcess = spawn(cmd, args, {
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
-        timeout: 5000,
+        timeout: TIMEOUTS.TERMINAL_COMMAND,
         detached: false,
         windowsHide: true,
         env: {

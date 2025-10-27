@@ -1,10 +1,5 @@
-const originalLog = console.log;
-console.log = () => {};
-
 import dotenv from "dotenv";
 dotenv.config({ debug: false });
-
-console.log = originalLog;
 
 import open from "open";
 import fs from "fs-extra";
@@ -50,7 +45,6 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 (async () => {
   try {
     logger.info("Starting mock server generation", { prompt: userPrompt });
-    console.log("Generating mock server...");
 
     const prompt = `Generate only raw, runnable Express.js code using ESM import syntax (no require or module.exports). Do not include markdown formatting or code blocks. The code should be ready to run as-is. Instruction: ${userPrompt}`;
 
@@ -59,8 +53,8 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     const response = result.response;
     const reply = response.text();
 
-    console.log("AI response received, processing code...");
-    logger.debug("AI response received", { length: reply?.length });
+    logger.info("AI response received, processing code...");
+    logger.debug("AI response details", { length: reply?.length });
 
     // Improved code validation
     if (!reply || typeof reply !== "string") {
@@ -198,7 +192,7 @@ async function initializeGitRepo(projectDir, fileName, userPrompt) {
     const gitExists = await fs.pathExists(gitDir);
 
     if (!gitExists) {
-      console.log("Initializing git repository...");
+      logger.info("Initializing git repository...");
       await executeGitCommand(projectDir, ["init"]);
       const gitignoreContent = `node_modules/
 *.log
@@ -233,7 +227,7 @@ coverage/
         "Initial commit: Sage CLI generated project",
       ]);
 
-      console.log("Git repository initialized");
+      logger.info("Git repository initialized");
     }
 
     const shortPrompt =
@@ -245,9 +239,9 @@ coverage/
       `Generated: ${shortPrompt}`,
     ]);
 
-    console.log(`Committed: ${fileName}`);
+    logger.info(`Committed: ${fileName}`);
   } catch (error) {
-    console.log(`Git operation failed: ${error.message}`);
+    logger.warn(`Git operation failed: ${error.message}`);
   }
 }
 

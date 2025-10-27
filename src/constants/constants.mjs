@@ -18,11 +18,20 @@ export const TIMEOUTS = {
   GENERATION: 30000,
   NETWORK: 10000,
   GITHUB_API: 5000,
+  TERMINAL_COMMAND: 5000,
+  MCP_CONNECTION: 10000,
+  MCP_INSTALL: 60000,
+  GIT_OPERATION: 5000,
 };
 
 export const DEFAULTS = {
   VERSION: "0.0.1-beta",
   TEST_HOST: "http://localhost:3000",
+};
+
+export const RETRY_LIMITS = {
+  MCP_CONNECTION: 2,
+  FILESYSTEM_OPERATION: 3,
 };
 
 export const BANNER_GRADIENT = [

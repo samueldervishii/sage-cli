@@ -3,6 +3,11 @@ import path from "path";
 import os from "os";
 import crypto from "crypto";
 import chalk from "chalk";
+import { fileURLToPath } from "url";
+import { PATHS, DEFAULTS } from "../constants/constants.mjs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class ConfigManager {
   constructor() {
@@ -37,10 +42,15 @@ class ConfigManager {
   encrypt(text) {
     if (!text) return text;
     try {
-      const cipher = crypto.createCipher("aes-256-cbc", this.encryptionKey);
+      // Generate a random IV for each encryption
+      const iv = crypto.randomBytes(16);
+      // Ensure key is 32 bytes for AES-256
+      const key = crypto.scryptSync(this.encryptionKey, "salt", 32);
+      const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
       let encrypted = cipher.update(text, "utf8", "hex");
       encrypted += cipher.final("hex");
-      return encrypted;
+      // Prepend IV to encrypted data (IV is not secret)
+      return iv.toString("hex") + ":" + encrypted;
     } catch {
       console.warn(chalk.yellow("Warning: Encryption failed, storing plain"));
       return text;
@@ -50,10 +60,27 @@ class ConfigManager {
   decrypt(encryptedText) {
     if (!encryptedText) return encryptedText;
     try {
-      const decipher = crypto.createDecipher("aes-256-cbc", this.encryptionKey);
-      let decrypted = decipher.update(encryptedText, "hex", "utf8");
-      decrypted += decipher.final("utf8");
-      return decrypted;
+      // Check if this is new format (with IV) or old format (without)
+      if (encryptedText.includes(":")) {
+        // New format: extract IV from encrypted data
+        const parts = encryptedText.split(":");
+        const iv = Buffer.from(parts[0], "hex");
+        const encrypted = parts[1];
+        const key = crypto.scryptSync(this.encryptionKey, "salt", 32);
+        const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+        let decrypted = decipher.update(encrypted, "hex", "utf8");
+        decrypted += decipher.final("utf8");
+        return decrypted;
+      } else {
+        // Old format: fallback to deprecated method for backward compatibility
+        const decipher = crypto.createDecipher(
+          "aes-256-cbc",
+          this.encryptionKey
+        );
+        let decrypted = decipher.update(encryptedText, "hex", "utf8");
+        decrypted += decipher.final("utf8");
+        return decrypted;
+      }
     } catch {
       return encryptedText;
     }
@@ -170,8 +197,18 @@ class ConfigManager {
   }
 
   getDefaultConfig() {
+    // Try to load version from package.json, fallback to DEFAULTS.VERSION
+    let version = DEFAULTS.VERSION;
+    try {
+      const packagePath = path.join(__dirname, PATHS.PACKAGE);
+      const packageData = fs.readJsonSync(packagePath);
+      version = packageData.version || DEFAULTS.VERSION;
+    } catch (error) {
+      // Use fallback version if package.json can't be read
+    }
+
     return {
-      version: "0.0.10-beta",
+      version: version,
       apiKeys: {
         gemini: null,
         openai: null,

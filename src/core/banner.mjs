@@ -68,40 +68,48 @@ export function displayTips() {
 
 export async function getBuildInfo() {
   try {
-    const { stdout } = await new Promise(resolve => {
-      const child = spawn("git", ["rev-parse", "--short", "HEAD"], {
-        cwd: __dirname + "/..",
-        stdio: ["ignore", "pipe", "ignore"],
-      });
-
-      let output = "";
-      child.stdout.on("data", data => (output += data.toString()));
-      child.on("close", code => {
-        if (code === 0) {
-          resolve({ stdout: output.trim() });
-        } else {
-          resolve({ stdout: null });
-        }
-      });
-      child.on("error", () => resolve({ stdout: null }));
-    });
-
-    if (stdout) {
-      const { stdout: dateOutput } = await new Promise(resolve => {
-        const child = spawn(
-          "git",
-          ["log", "-1", "--format=%cd", "--date=short"],
-          {
-            cwd: __dirname + "/..",
-            stdio: ["ignore", "pipe", "ignore"],
-          }
-        );
+    const { stdout } = await Promise.race([
+      new Promise(resolve => {
+        const child = spawn("git", ["rev-parse", "--short", "HEAD"], {
+          cwd: path.join(__dirname, ".."),
+          stdio: ["ignore", "pipe", "ignore"],
+        });
 
         let output = "";
         child.stdout.on("data", data => (output += data.toString()));
-        child.on("close", () => resolve({ stdout: output.trim() }));
+        child.on("close", code => {
+          if (code === 0) {
+            resolve({ stdout: output.trim() });
+          } else {
+            resolve({ stdout: null });
+          }
+        });
         child.on("error", () => resolve({ stdout: null }));
-      });
+      }),
+      new Promise(resolve => setTimeout(() => resolve({ stdout: null }), 5000)),
+    ]);
+
+    if (stdout) {
+      const { stdout: dateOutput } = await Promise.race([
+        new Promise(resolve => {
+          const child = spawn(
+            "git",
+            ["log", "-1", "--format=%cd", "--date=short"],
+            {
+              cwd: path.join(__dirname, ".."),
+              stdio: ["ignore", "pipe", "ignore"],
+            }
+          );
+
+          let output = "";
+          child.stdout.on("data", data => (output += data.toString()));
+          child.on("close", () => resolve({ stdout: output.trim() }));
+          child.on("error", () => resolve({ stdout: null }));
+        }),
+        new Promise(resolve =>
+          setTimeout(() => resolve({ stdout: null }), 5000)
+        ),
+      ]);
 
       return {
         hash: stdout,

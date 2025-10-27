@@ -15,10 +15,13 @@ export class ProjectAI {
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
-        console.error(
-          chalk.red("GEMINI_API_KEY not found. Please run 'sage setup'")
+        const error = new Error(
+          "GEMINI_API_KEY not found. Please run 'sage setup' to configure your API keys."
         );
-        return;
+        console.error(chalk.red(error.message));
+        this.model = null;
+        this.gemini = null;
+        throw error;
       }
 
       this.gemini = new GoogleGenerativeAI(apiKey);
@@ -33,6 +36,9 @@ export class ProjectAI {
       });
     } catch (error) {
       console.error(chalk.red("Failed to initialize AI:"), error.message);
+      this.model = null;
+      this.gemini = null;
+      throw error;
     }
   }
 

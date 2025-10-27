@@ -60,12 +60,10 @@ export async function handleChat() {
         detached: false,
       });
 
-      let _output = "";
       let hasOutput = false;
 
       child.stdout.on("data", data => {
         const text = data.toString();
-        _output += text;
         if (!hasOutput) {
           spinner.stop();
           hasOutput = true;
@@ -75,7 +73,6 @@ export async function handleChat() {
 
       child.stderr.on("data", data => {
         const text = data.toString();
-        _output += text;
         if (!hasOutput) {
           spinner.stop();
           hasOutput = true;
@@ -88,6 +85,12 @@ export async function handleChat() {
           chalk.yellow("Generation is taking longer than expected...")
         );
         child.kill("SIGTERM");
+        // Force kill if process doesn't terminate gracefully
+        setTimeout(() => {
+          if (!child.killed) {
+            child.kill("SIGKILL");
+          }
+        }, 5000);
         reject(new Error("Generation timeout"));
       }, TIMEOUTS.GENERATION);
 

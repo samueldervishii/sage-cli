@@ -33,7 +33,7 @@ export async function parseAndExecuteCommand(args) {
     case "setup": {
       const setupWizard = new SetupWizard();
       await setupWizard.run();
-      reloadEnvVars();
+      await reloadEnvVars();
       process.exit(0);
     }
 
@@ -98,8 +98,14 @@ Version Control:
 
         child.on("error", err => {
           console.error(chalk.red("Failed to run generator:"), err.message);
+          process.exit(1);
         });
-        process.exit(0);
+
+        child.on("close", code => {
+          process.exit(code || 0);
+        });
+
+        return;
       }
     }
   }

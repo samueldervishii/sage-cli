@@ -313,8 +313,13 @@ export class ProjectHandler {
           structure.structure[item] = "file";
         }
       }
-    } catch {
-      // Ignore errors
+    } catch (error) {
+      // Log errors during directory scan (permissions, symlinks, etc.)
+      if (process.env.DEBUG) {
+        console.error(
+          chalk.gray(`Debug: Error scanning ${projectPath} - ${error.message}`)
+        );
+      }
     }
   }
 
