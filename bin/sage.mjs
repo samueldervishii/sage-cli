@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
+import ConfigManager from "../src/config/config-manager.mjs";
 
 // Get the directory where this script is located
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +23,26 @@ dotenv.config({
   path: envPath,
   debug: false,
 });
+
+// Load API keys from ConfigManager into environment variables
+try {
+  const configManager = new ConfigManager();
+  const config = await configManager.loadConfig();
+
+  if (config.apiKeys) {
+    if (config.apiKeys.gemini) {
+      process.env.GEMINI_API_KEY = config.apiKeys.gemini;
+    }
+    if (config.apiKeys.openai) {
+      process.env.OPENAI_API_KEY = config.apiKeys.openai;
+    }
+    if (config.apiKeys.serper) {
+      process.env.SERPER_API_KEY = config.apiKeys.serper;
+    }
+  }
+} catch (error) {
+  // Silently fail if config doesn't exist yet
+}
 
 console.log = originalLog;
 

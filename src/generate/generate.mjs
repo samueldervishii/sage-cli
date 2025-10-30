@@ -1,6 +1,3 @@
-import dotenv from "dotenv";
-dotenv.config({ debug: false });
-
 import open from "open";
 import fs from "fs-extra";
 import path from "path";
@@ -8,6 +5,7 @@ import { fileURLToPath } from "url";
 import { spawn } from "child_process";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import logger from "../utils/logger.mjs";
+import ConfigManager from "../config/config-manager.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,15 +29,17 @@ if (!userPrompt) {
   process.exit(1);
 }
 
-if (!process.env.GEMINI_API_KEY) {
-  console.error("Error: GEMINI_API_KEY not found in environment variables.");
-  console.error(
-    "Please add your API key to the .env file or run 'sage setup' to configure."
-  );
+// Load API key from ConfigManager
+const configManager = new ConfigManager();
+const geminiApiKey = await configManager.getApiKey("gemini");
+
+if (!geminiApiKey) {
+  console.error("Error: GEMINI_API_KEY not found in configuration.");
+  console.error("Please run 'sage setup' to configure your API keys.");
   process.exit(1);
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(geminiApiKey);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
 (async () => {

@@ -1,4 +1,5 @@
 import path from "path";
+import os from "os";
 import inquirer from "inquirer";
 import chalk from "chalk";
 import { fileURLToPath } from "url";
@@ -13,7 +14,7 @@ class SetupWizard {
     this.configManager = new ConfigManager();
     this.envPath = path.join(__dirname, "..", ".env");
     this.userEnvPath = path.join(
-      process.env.HOME,
+      os.homedir(),
       ".local",
       "bin",
       "sage-cli",
