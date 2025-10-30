@@ -6,10 +6,20 @@ console.log = () => {};
 import dotenv from "dotenv";
 import os from "os";
 import path from "path";
+import { fileURLToPath } from "url";
+
+// Get the directory where this script is located
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config({ debug: false });
+
+// Try to load .env from the installation directory (one level up from bin/)
+const installDir = path.resolve(__dirname, "..");
+const envPath = path.join(installDir, ".env");
+
 dotenv.config({
-  path: path.join(os.homedir(), ".local", "bin", "sage-cli", ".env"),
+  path: envPath,
   debug: false,
 });
 

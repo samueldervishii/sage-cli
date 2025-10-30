@@ -299,16 +299,34 @@ async function setupPath(installDir) {
     return;
   }
 
-  const instructions = getShellInstructions(installDir);
+  const isWindows = os.platform() === "win32";
 
   printWarning(`${installDir} is not in your PATH`);
-  printStatus(instructions.message);
-  console.log(`\n    ${instructions.command}\n`);
 
-  if (os.platform() !== "win32") {
-    printStatus("Then restart your terminal or source your shell profile");
+  if (isWindows) {
+    // Try to automatically add to PATH on Windows
+    printStatus("Attempting to add to PATH...");
+    try {
+      const psCommand = `[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";${installDir}", "User")`;
+
+      execSync(`powershell -Command "${psCommand}"`, { stdio: "pipe" });
+
+      printSuccess("Successfully added to PATH!");
+      printStatus("Please restart your terminal for changes to take effect");
+      printStatus(`Then you can run: ${BINARY_NAME}`);
+      return;
+    } catch (error) {
+      printWarning("Could not automatically add to PATH");
+      const instructions = getShellInstructions(installDir);
+      printStatus(instructions.message);
+      console.log(`\n    ${instructions.command}\n`);
+      printStatus("Then restart your terminal");
+    }
   } else {
-    printStatus("Then restart your terminal");
+    const instructions = getShellInstructions(installDir);
+    printStatus(instructions.message);
+    console.log(`\n    ${instructions.command}\n`);
+    printStatus("Then restart your terminal or source your shell profile");
   }
 }
 
