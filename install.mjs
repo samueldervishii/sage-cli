@@ -97,34 +97,57 @@ async function checkNode() {
 async function downloadAndExtract(url, tempDir) {
   const isWindows = os.platform() === "win32";
 
-  if (commandExists("curl")) {
-    execSync(`curl -fsSL "${url}" | tar -xz -C "${tempDir}"`, {
-      stdio: "inherit",
-    });
-  } else if (commandExists("wget")) {
-    execSync(`wget -qO- "${url}" | tar -xz -C "${tempDir}"`, {
-      stdio: "inherit",
-    });
-  } else if (isWindows && commandExists("powershell")) {
-    const psScript = `
-      $url = "${url}"
-      $tempFile = [System.IO.Path]::GetTempFileName() + ".tar.gz"
-      Invoke-WebRequest -Uri $url -OutFile $tempFile
-      # Extract using 7zip or built-in tar if available
-      if (Get-Command tar -ErrorAction SilentlyContinue) {
-        tar -xzf $tempFile -C "${tempDir.replace(/\\/g, "/")}"
+  // Windows tar doesn't handle piped input well, so download to temp file first
+  if (isWindows) {
+    const tempFile = path.join(os.tmpdir(), `sage-cli-${Date.now()}.tar.gz`);
+    try {
+      if (commandExists("curl")) {
+        execSync(`curl -fsSL "${url}" -o "${tempFile}"`, {
+          stdio: "inherit",
+        });
+      } else if (commandExists("powershell")) {
+        execSync(
+          `powershell -Command "Invoke-WebRequest -Uri '${url}' -OutFile '${tempFile}'"`,
+          { stdio: "inherit" }
+        );
       } else {
-        Write-Error "tar command not found. Please install Git for Windows or 7-Zip."
-        exit 1
+        printError(
+          "Neither curl nor PowerShell found. Please install one of them."
+        );
+        process.exit(1);
       }
-      Remove-Item $tempFile
-    `;
-    execSync(`powershell -Command "${psScript}"`, { stdio: "inherit" });
+
+      // Extract the downloaded file
+      if (commandExists("tar")) {
+        execSync(`tar -xzf "${tempFile}" -C "${tempDir}"`, {
+          stdio: "inherit",
+        });
+      } else {
+        printError("tar command not found. Please install Git for Windows.");
+        process.exit(1);
+      }
+    } finally {
+      // Clean up temp file
+      try {
+        await fs.unlink(tempFile);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
   } else {
-    printError(
-      "Neither curl, wget, nor PowerShell found. Please install one of them."
-    );
-    process.exit(1);
+    // Unix-like systems can use piping
+    if (commandExists("curl")) {
+      execSync(`curl -fsSL "${url}" | tar -xz -C "${tempDir}"`, {
+        stdio: "inherit",
+      });
+    } else if (commandExists("wget")) {
+      execSync(`wget -qO- "${url}" | tar -xz -C "${tempDir}"`, {
+        stdio: "inherit",
+      });
+    } else {
+      printError("Neither curl nor wget found. Please install one of them.");
+      process.exit(1);
+    }
   }
 }
 

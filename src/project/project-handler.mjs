@@ -101,13 +101,13 @@ export class ProjectHandler {
         name: "trustProject",
         message: "Choose an option:",
         choices: [
-          { name: "✓ Yes, analyze this project", value: "trust" },
+          { name: "Yes, analyze this project", value: "trust" },
           {
-            name: "✓ Yes, trust this and all subdirectories",
+            name: "Yes, trust this and all subdirectories",
             value: "trust_all",
           },
-          { name: "✗ No, use basic mode only", value: "basic" },
-          { name: "✗ Exit", value: "exit" },
+          { name: "No, use basic mode only", value: "basic" },
+          { name: "Exit", value: "exit" },
         ],
       },
     ]);
@@ -128,7 +128,7 @@ export class ProjectHandler {
       });
 
       await this.saveTrustedProjects();
-      console.log(chalk.green(`✓ Project "${projectName}" is now trusted`));
+      console.log(chalk.green(`Project "${projectName}" is now trusted`));
       return true;
     }
 

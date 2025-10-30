@@ -42,28 +42,60 @@ export const BANNER_GRADIENT = [
   "#FFEAA7",
 ];
 
+// Programming-symbol donut banner (plain ASCII for Windows compatibility)
 export const BANNER_ASCII = `
-███████╗ █████╗  ██████╗ ███████╗
-██╔════╝██╔══██╗██╔════╝ ██╔════╝
-███████╗███████║██║  ███╗█████╗  
-╚════██║██╔══██║██║   ██║██╔══╝  
-███████║██║  ██║╚██████╔╝███████╗
-╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+  <=======]}======
+    --.   /|
+   _\"/_.'/
+ .'._._,.'
+ :/ \{}/
+(L  /--',----._
+    |          \\
+   : /-\ .'-'\ / |
+    \\, ||    \|
+     \/ ||    ||
 `;
 
-export const QUICK_COMMANDS = [
-  { name: "System Info (uname -a)", value: "uname -a" },
-  { name: "Current Directory (pwd)", value: "pwd" },
-  { name: "Date and Time (date)", value: "date" },
-  { name: "Who Am I (whoami)", value: "whoami" },
-  { name: "Disk Usage (df -h)", value: "df -h" },
-  { name: "Memory Info (free -h)", value: "free -h" },
-  {
-    name: "Network Test (ping -c 3 google.com)",
-    value: "ping -c 3 google.com",
-  },
-  { name: "Git Status", value: "git status" },
-  { name: "Node Version", value: "node --version" },
-  { name: "NPM Version", value: "npm --version" },
-  { name: "Back to Terminal Menu", value: "back" },
-];
+export function getQuickCommands() {
+  const isWindows = process.platform === "win32";
+
+  if (isWindows) {
+    return [
+      { name: "System Info", value: "systeminfo" },
+      { name: "Current Directory", value: "cd" },
+      { name: "Date and Time", value: "echo %date% %time%" },
+      { name: "Who Am I", value: "whoami" },
+      {
+        name: "Disk Usage",
+        value: "wmic logicaldisk get size,freespace,caption",
+      },
+      { name: "List Directory", value: "dir" },
+      { name: "Network Test (ping)", value: "ping -n 3 google.com" },
+      { name: "Git Status", value: "git status" },
+      { name: "Node Version", value: "node --version" },
+      { name: "NPM Version", value: "npm --version" },
+      { name: "Environment Variables", value: "set" },
+      { name: "Back to Terminal Menu", value: "back" },
+    ];
+  } else {
+    return [
+      { name: "System Info (uname -a)", value: "uname -a" },
+      { name: "Current Directory (pwd)", value: "pwd" },
+      { name: "Date and Time (date)", value: "date" },
+      { name: "Who Am I (whoami)", value: "whoami" },
+      { name: "Disk Usage (df -h)", value: "df -h" },
+      { name: "Memory Info (free -h)", value: "free -h" },
+      {
+        name: "Network Test (ping -c 3 google.com)",
+        value: "ping -c 3 google.com",
+      },
+      { name: "Git Status", value: "git status" },
+      { name: "Node Version", value: "node --version" },
+      { name: "NPM Version", value: "npm --version" },
+      { name: "Back to Terminal Menu", value: "back" },
+    ];
+  }
+}
+
+// Legacy export for compatibility
+export const QUICK_COMMANDS = getQuickCommands();

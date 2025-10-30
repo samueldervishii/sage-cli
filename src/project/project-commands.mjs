@@ -19,7 +19,7 @@ export class ProjectCommands {
     }
 
     if (accessInfo.isProject && accessInfo.trusted) {
-      console.log(chalk.green("✓ Project access granted"));
+      console.log(chalk.green("Project access granted"));
 
       const spinner = ora("Analyzing project structure...").start();
       try {
@@ -399,7 +399,7 @@ export class ProjectCommands {
       ]);
 
       await this.projectHandler.removeTrustedProject(projectToRemove);
-      console.log(chalk.green("✓ Project removed from trusted list"));
+      console.log(chalk.green("Project removed from trusted list"));
     }
   }
 

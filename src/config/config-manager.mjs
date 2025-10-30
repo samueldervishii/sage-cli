@@ -137,7 +137,7 @@ class ConfigManager {
         mode: 0o600,
       });
 
-      console.log(chalk.green(`✓ Configuration saved to ${this.configFile}`));
+      console.log(chalk.green(`Configuration saved to ${this.configFile}`));
       return true;
     } catch (error) {
       console.error(chalk.red(`Error saving config: ${error.message}`));
@@ -183,7 +183,7 @@ class ConfigManager {
 
       const saved = await this.saveConfig(config);
       if (saved) {
-        console.log(chalk.green("✓ Configuration migrated successfully!"));
+        console.log(chalk.green("Configuration migrated successfully!"));
         console.log(
           chalk.dim("Your API keys are now stored securely in ~/.sage-cli/")
         );
@@ -287,7 +287,7 @@ class ConfigManager {
       if (await fs.pathExists(this.configFile)) {
         await fs.remove(this.configFile);
       }
-      console.log(chalk.green("✓ Configuration reset"));
+      console.log(chalk.green("Configuration reset"));
       return true;
     } catch (error) {
       console.error(chalk.red(`Error resetting config: ${error.message}`));

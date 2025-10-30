@@ -124,7 +124,7 @@ class Logger {
 
   success(message) {
     this.writeToFile("success", message);
-    console.log(chalk.green(`✓ ${message}`));
+    console.log(chalk.green(`${message}`));
   }
 
   logRequest(service, action, details = null) {

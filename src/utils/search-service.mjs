@@ -15,18 +15,32 @@ class SearchService {
       return true;
     }
 
-    if (!process.env.SERPER_API_KEY) {
+    // Check for Tavily API key first (preferred)
+    const hasTavily = !!process.env.TAVILY_API_KEY;
+    const hasSerper = !!process.env.SERPER_API_KEY;
+
+    if (!hasTavily && !hasSerper) {
       console.log(
         chalk.yellow(
-          "Serper API key not configured. Web search functionality will be disabled."
+          "No search API key configured. Web search functionality will be disabled."
         )
       );
-      console.log(chalk.gray("To enable search:"));
+      console.log(chalk.gray("To enable search, choose one:"));
       console.log(
-        chalk.gray("1. Get a free API key from https://serper.dev/api-key")
+        chalk.gray(
+          "Option 1 (Recommended): Get Tavily API key from https://tavily.com"
+        )
       );
       console.log(
-        chalk.gray("2. Add SERPER_API_KEY=your_key_here to your .env file")
+        chalk.gray("  Add TAVILY_API_KEY=your_key_here to your .env file")
+      );
+      console.log(
+        chalk.gray(
+          "Option 2: Get Serper API key from https://serper.dev/api-key"
+        )
+      );
+      console.log(
+        chalk.gray("  Add SERPER_API_KEY=your_key_here to your .env file")
       );
       return false;
     }
@@ -34,29 +48,50 @@ class SearchService {
     const spinner = ora("Connecting to search service...").start();
 
     try {
-      this.transport = new StdioClientTransport({
-        command: "npx",
-        args: ["-y", "serper-search-scrape-mcp-server"],
-        env: {
-          ...process.env,
-          SERPER_API_KEY: process.env.SERPER_API_KEY,
-        },
-      });
+      // Try Tavily first if available
+      if (hasTavily) {
+        this.transport = new StdioClientTransport({
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-tavily"],
+          env: {
+            ...process.env,
+            TAVILY_API_KEY: process.env.TAVILY_API_KEY,
+          },
+        });
+        this.searchProvider = "tavily";
+      } else {
+        // Fall back to Serper
+        this.transport = new StdioClientTransport({
+          command: "npx",
+          args: ["-y", "serper-search-scrape-mcp-server"],
+          env: {
+            ...process.env,
+            SERPER_API_KEY: process.env.SERPER_API_KEY,
+          },
+        });
+        this.searchProvider = "serper";
+      }
 
       this.client = new Client({
         name: "sage-search-client",
-        version: "0.0.7-beta",
+        version: "1.0.0",
       });
 
       await this.client.connect(this.transport);
       this.isConnected = true;
 
-      spinner.succeed("Connected to search service");
+      spinner.succeed(`Connected to search service (${this.searchProvider})`);
       return true;
     } catch (error) {
       spinner.fail("Failed to connect to search service");
       console.error(chalk.red("Search service error:"), error.message);
-      if (error.message.includes("SERPER_API_KEY")) {
+      if (hasTavily) {
+        console.log(
+          chalk.yellow(
+            "Make sure your TAVILY_API_KEY is valid in the .env file"
+          )
+        );
+      } else if (hasSerper) {
         console.log(
           chalk.yellow(
             "Make sure your SERPER_API_KEY is valid in the .env file"
@@ -94,9 +129,11 @@ class SearchService {
     try {
       const tools = await this.client.listTools();
 
+      // Look for search tool - supports both Tavily and Serper
       let searchTool = tools.tools.find(
         tool =>
           tool.name === "search" ||
+          tool.name === "tavily_search" ||
           tool.name === "web_search" ||
           tool.name === "google_search" ||
           tool.name === "serper_search"
@@ -110,15 +147,28 @@ class SearchService {
         throw new Error("No search tool found in MCP server");
       }
 
-      const result = await this.client.callTool({
-        name: searchTool.name,
-        arguments: {
+      // Build arguments based on provider
+      let searchArgs = {};
+      if (this.searchProvider === "tavily") {
+        searchArgs = {
+          query: query,
+          max_results: options.numResults || 5,
+          ...options,
+        };
+      } else {
+        // Serper format
+        searchArgs = {
           q: query,
           gl: options.region || "us",
           hl: options.language || "en",
           num: options.numResults || 10,
           ...options,
-        },
+        };
+      }
+
+      const result = await this.client.callTool({
+        name: searchTool.name,
+        arguments: searchArgs,
       });
 
       spinner.succeed(`Found search results for: ${query}`);
@@ -127,6 +177,7 @@ class SearchService {
         query: query,
         results: result.content || [],
         tool_used: searchTool.name,
+        provider: this.searchProvider,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
@@ -140,15 +191,15 @@ class SearchService {
     const lowerMessage = message.toLowerCase();
 
     const explicitSearchPatterns = [
-      /search\s+(online\s+)?for\s+/,
+      /search\s+(online\s+)?(for|about)\s+/,
       /look\s+up\s+.+\s+online/,
-      /find\s+information\s+about\s+/,
-      /search\s+the\s+web\s+for/,
-      /google\s+search\s+for/,
-      /web\s+search\s+for/,
+      /find\s+information\s+(about|on|for)\s+/,
+      /search\s+the\s+web\s+(for|about)/,
+      /google\s+search\s+(for|about)/,
+      /web\s+search\s+(for|about)/,
       /^search\s+/,
-      /latest\s+news\s+about\s+/,
-      /current\s+events\s+about/,
+      /latest\s+news\s+(about|on)\s+/,
+      /current\s+events\s+(about|on)/,
       /recent\s+developments\s+in/,
       /what's\s+happening\s+with\s+/,
       /what\s+is\s+the\s+latest\s+/,
@@ -162,9 +213,13 @@ class SearchService {
     const lowerMessage = message.toLowerCase();
 
     const prefixes = [
+      "search online for ",
+      "search online about ",
       "search for ",
+      "search about ",
       "look up ",
       "find information about ",
+      "find information on ",
       "tell me about ",
       "what is ",
       "what are ",

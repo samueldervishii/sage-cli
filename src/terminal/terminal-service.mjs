@@ -215,17 +215,27 @@ class TerminalService {
       }
     }
 
-    // Comprehensive injection pattern checking
+    // Comprehensive injection pattern checking (platform-aware)
+    const isWindows = process.platform === "win32";
     const injectionPatterns = [
-      { pattern: /[;&|`$(){}[\]\\]/, desc: "Shell metacharacters" },
+      { pattern: /[;&|`(){}[\]\\]/, desc: "Shell metacharacters" },
       { pattern: /<|>/, desc: "Redirection operators" },
       { pattern: /\*\*/, desc: "Globstar pattern" },
       { pattern: /^\s*\./, desc: "Dotfile execution" },
       { pattern: /\.\.\//, desc: "Directory traversal" },
       { pattern: /\x00/, desc: "Null byte" },
       { pattern: /[\r\n]/, desc: "Line break injection" },
-      { pattern: /~\//, desc: "Home directory expansion" },
-      { pattern: /\$\{/, desc: "Variable expansion" },
+      // Platform-specific patterns
+      ...(isWindows
+        ? [
+            // Windows: Allow % for variables, but block $ for Unix-style expansion
+            { pattern: /\$\{/, desc: "Unix variable expansion" },
+          ]
+        : [
+            // Unix: Block both $ and ~ expansions
+            { pattern: /\$/, desc: "Variable expansion" },
+            { pattern: /~\//, desc: "Home directory expansion" },
+          ]),
     ];
 
     for (const { pattern, desc } of injectionPatterns) {
@@ -237,19 +247,11 @@ class TerminalService {
       }
     }
 
+    // Build safe command list based on platform (isWindows already defined above)
     const safeCommandPrefixes = [
-      "ls",
-      "dir",
-      "pwd",
+      // Cross-platform commands
       "whoami",
-      "id",
-      "date",
-      "uptime",
-      "uname",
       "hostname",
-      "df -h",
-      "free -h",
-      "ps aux",
       "git status",
       "git log",
       "git branch",
@@ -258,22 +260,52 @@ class TerminalService {
       "npm --version",
       "node --version",
       "python --version",
-      "cat ",
-      "head ",
-      "tail ",
-      "grep ",
-      "wc ",
-      "sort",
-      "uniq",
-      "ping -c",
-      "curl -s",
-      "wget --version",
-      "which ",
-      "type ",
-      "echo ",
-      "printf ",
-      "env",
-      "printenv",
+
+      // Platform-specific commands
+      ...(isWindows
+        ? [
+            // Windows commands
+            "dir",
+            "cd",
+            "echo ",
+            "set",
+            "ver",
+            "systeminfo",
+            "wmic logicaldisk",
+            "ping -n",
+            "ipconfig",
+            "where ",
+            "type ",
+            "tree",
+            "tasklist",
+          ]
+        : [
+            // Unix/Linux/macOS commands
+            "ls",
+            "pwd",
+            "id",
+            "date",
+            "uptime",
+            "uname",
+            "df -h",
+            "free -h",
+            "ps aux",
+            "cat ",
+            "head ",
+            "tail ",
+            "grep ",
+            "wc ",
+            "sort",
+            "uniq",
+            "ping -c",
+            "curl -s",
+            "wget --version",
+            "which ",
+            "echo ",
+            "printf ",
+            "env",
+            "printenv",
+          ]),
     ];
 
     const isWhitelisted = safeCommandPrefixes.some(
@@ -446,14 +478,40 @@ class TerminalService {
   }
 
   static getSafeCommandsInfo() {
-    return {
-      message: chalk.cyan(`
+    const isWindows = process.platform === "win32";
+
+    const windowsInfo = chalk.cyan(`
+Terminal Integration Info (Windows):
+
+${chalk.green("Safe Commands:")}
+  • System info: systeminfo, whoami, hostname, ver
+  • File operations: dir, cd, type, tree
+  • Network: ping, ipconfig
+  • Process info: tasklist
+  • Environment: set, echo
+  • Git operations: git status, git log
+  • Development: npm list, node --version
+
+${chalk.yellow("Security Features:")}
+  • Command timeout (5 seconds)
+  • Dangerous command blocking
+  • Output size limits
+  • No admin/elevated operations
+
+${chalk.blue("Usage Examples:")}
+  • "ping -n 3 google.com"
+  • "systeminfo"
+  • "git status"
+  • "node --version"
+`);
+
+    const unixInfo = chalk.cyan(`
 Terminal Integration Info:
 
 ${chalk.green("Safe Commands:")}
-  • System info: uname, whoami, pwd, date
-  • File operations: ls, dir, cat, head, tail
-  • Network: ping, curl (with limits)  
+  • System info: uname, whoami, pwd, date, hostname
+  • File operations: ls, cat, head, tail
+  • Network: ping, curl (with limits)
   • Process info: ps, top (brief)
   • Git operations: git status, git log
   • Development: npm list, node --version
@@ -465,11 +523,14 @@ ${chalk.yellow("Security Features:")}
   • No sudo/root operations
 
 ${chalk.blue("Usage Examples:")}
-  • "ping google.com"
-  • "check system info"
-  • "run git status"
-  • "execute npm --version"
-`),
+  • "ping -c 3 google.com"
+  • "uname -a"
+  • "git status"
+  • "npm --version"
+`);
+
+    return {
+      message: isWindows ? windowsInfo : unixInfo,
     };
   }
 }

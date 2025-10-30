@@ -18,6 +18,59 @@ import { handleTerminal } from "../terminal/terminal-handler.mjs";
 import SetupWizard from "../config/setup-wizard.mjs";
 import ProjectCommands from "../project/project-commands.mjs";
 
+// ---- Patch Inquirer to remove "✔" and "?" ----
+try {
+  const basePrompt = await import("inquirer/lib/prompts/base.js");
+  const Prompt = basePrompt.default || basePrompt.Prompt;
+  if (Prompt && Prompt.prototype && Prompt.prototype.render) {
+    const oldRender = Prompt.prototype.render;
+    Prompt.prototype.render = function (...args) {
+      oldRender.apply(this, args);
+      if (this.screen && this.screen.render) {
+        const origRender = this.screen.render;
+        this.screen.render = function (content, bottomContent) {
+          if (
+            content &&
+            typeof content === "string" &&
+            content.includes("✔")
+          ) {
+            content = content.replace(/✔/g, "");
+          }
+          try {
+            if (content && typeof content === "string") {
+              // Strip default inquirer decorations on Windows/ANSI-limited terminals
+              content = content.replace(/^\?\s+/gm, ""); // leading question mark
+              content = content.replace(/^[✔✖✓]\s*/gm, ""); // ticks/crosses
+              content = content.replace(/^[❯›»]\s*/gm, ""); // list pointers
+            }
+          } catch {}
+          return origRender.call(this, content, bottomContent);
+        };
+      }
+    };
+  }
+} catch (err) {
+  if (process.env.DEBUG) console.log("Inquirer patch skipped:", err.message);
+}
+
+inquirer.Symbols = {
+  ...inquirer.Symbols,
+  check: "",
+  prefix: "",
+  pointer: "",
+  radioOn: "",
+  radioOff: "",
+  // Remove the default question mark entirely
+  questionMark: "",
+};
+
+const originalPrompt = inquirer.prompt;
+inquirer.prompt = function (questions) {
+  if (!Array.isArray(questions)) questions = [questions];
+  questions = questions.map(q => ({ ...q, prefix: "" }));
+  return originalPrompt.call(this, questions);
+};
+
 let globalChatInstance = null;
 
 const slashCommands = [
@@ -42,6 +95,7 @@ async function getClaudeCodeStyleInput() {
         type: "input",
         name: "input",
         message: "> ",
+        prefix: "",
       },
     ]);
 
@@ -51,6 +105,7 @@ async function getClaudeCodeStyleInput() {
           type: "list",
           name: "command",
           message: "Select a command:",
+          prefix: "",
           choices: slashCommands.map(cmd => ({
             name: `${chalk.yellow(cmd.name)} - ${chalk.gray(cmd.description)}`,
             value: cmd.name,
@@ -63,10 +118,7 @@ async function getClaudeCodeStyleInput() {
 
     return result.input;
   } catch (error) {
-    // User cancelled input (Ctrl+C) - return empty to signal exit
-    if (error.message && error.message.includes("User force closed")) {
-      return "";
-    }
+    if (error.message && error.message.includes("User force closed")) return "";
     console.error(chalk.red("Input error:"), error.message);
     return "";
   }
@@ -79,12 +131,9 @@ export async function startInteractiveMode() {
 
   const setupWizard = new SetupWizard();
   const hasKeys = await setupWizard.quickSetup();
-  if (!hasKeys) {
-    return;
-  }
+  if (!hasKeys) return;
 
   await reloadEnvVars();
-
   const projectCommands = new ProjectCommands();
   let projectInitialized = false;
 
@@ -123,13 +172,10 @@ export async function startInteractiveMode() {
       console.log();
     }
   } catch (error) {
-    // Silently ignore update check errors (network issues are common)
-    // Only log if in debug mode
-    if (process.env.DEBUG) {
+    if (process.env.DEBUG)
       console.error(
         chalk.gray(`Debug: Update check failed - ${error.message}`)
       );
-    }
   }
 
   try {
@@ -151,11 +197,7 @@ export async function startInteractiveMode() {
   let continueSession = true;
   while (continueSession) {
     const input = await getClaudeCodeStyleInput();
-
-    if (!input.trim()) {
-      continue;
-    }
-
+    if (!input.trim()) continue;
     if (input.startsWith("/")) {
       continueSession = await handleSlashCommand(
         input.trim(),
@@ -165,7 +207,6 @@ export async function startInteractiveMode() {
     } else {
       await handleChatMessage(input.trim());
     }
-
     console.log("\n");
   }
   process.exit(0);
@@ -177,12 +218,11 @@ async function handleSlashCommand(
   projectInitialized
 ) {
   const cmd = command.toLowerCase();
-
   switch (cmd) {
     case "/help":
       console.log(
         chalk.cyan(`
-Sage CLI v0.5.0-beta
+Sage CLI v0.10.0-beta
 
 Always review Sage's responses, especially when running commands. Sage can analyze your code, 
 generate content, and help with development tasks through AI assistance.
@@ -214,60 +254,45 @@ Interactive Mode Commands:
       `)
       );
       break;
-
     case "/project":
-      if (projectInitialized) {
-        await projectCommands.handleProjectMenu();
-      } else {
+      if (projectInitialized) await projectCommands.handleProjectMenu();
+      else
         console.log(chalk.yellow("No project detected in current directory"));
-      }
       break;
-
     case "/chat":
       await startConversationalChat();
       break;
-
     case "/generate":
       await handleChat();
       break;
-
     case "/files":
       await handleFilesystem();
       break;
-
     case "/terminal":
       await handleTerminal();
       break;
-
     case "/history":
       await showHistory();
       break;
-
     case "/config":
       await handleConfig();
       break;
-
     case "/clean":
       await cleanFiles();
       break;
-
     case "/version":
       await handleVersionControl();
       break;
-
     case "/test":
       await testEndpoint();
       break;
-
     case "/exit":
       console.log(chalk.magenta("\nThanks for using Sage! See you next time!"));
       return false;
-
     default:
       console.log(chalk.red(`Unknown command: ${command}`));
       console.log(chalk.gray("Type /help to see available commands"));
   }
-
   return true;
 }
 
@@ -281,13 +306,11 @@ async function handleChatMessage(message) {
       );
       return;
     }
-
     await globalChatInstance.sendSingleMessage(message);
   } catch (error) {
     console.log(chalk.red("Error processing message:"), error.message);
-    if (error.message.includes("GEMINI_API_KEY")) {
+    if (error.message.includes("GEMINI_API_KEY"))
       console.log(chalk.yellow("Run 'sage setup' to configure your API keys"));
-    }
   }
 }
 
@@ -297,6 +320,7 @@ export async function handleVersionControl() {
       type: "list",
       name: "versionAction",
       message: chalk.cyan("Version Control Options:"),
+      prefix: "",
       choices: [
         { name: "Show Current Version", value: "version" },
         { name: "View Changelog", value: "changelog" },
@@ -319,6 +343,5 @@ export async function handleVersionControl() {
     case "back":
       return;
   }
-
   console.log();
 }

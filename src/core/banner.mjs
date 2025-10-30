@@ -62,7 +62,7 @@ export function displayTips() {
   console.log(chalk.cyan("\n Tips for getting started:\n"));
 
   tips.forEach(tip => {
-    console.log(`  ${chalk.green("✓")} ${tip}`);
+    console.log(`  ${chalk.green("")} ${tip}`);
   });
 }
 

@@ -44,8 +44,27 @@ export async function handleChat() {
     },
   ]);
 
+  // Random thinking messages
+  const thinkingMessages = [
+    "Sage is thinking...",
+    "Analyzing your request...",
+    "Processing with AI...",
+    "Consulting the wisdom...",
+    "Crafting a response...",
+    "Gathering thoughts...",
+    "Computing answer...",
+    "Pondering deeply...",
+    "Working on it...",
+    "AI neurons firing...",
+    "Brewing intelligence...",
+    "Summoning knowledge...",
+  ];
+
+  const randomMessage =
+    thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)];
+
   const spinner = ora({
-    text: chalk.blue("Sage is thinking..."),
+    text: chalk.blue(randomMessage),
     spinner: "dots12",
   }).start();
 

@@ -403,8 +403,27 @@ Please provide a comprehensive answer based on this information.`;
       }
     }
 
+    // Random thinking messages
+    const thinkingMessages = [
+      "Sage is thinking...",
+      "Analyzing your request...",
+      "Processing with AI...",
+      "Consulting the wisdom...",
+      "Crafting a response...",
+      "Gathering thoughts...",
+      "Computing answer...",
+      "Pondering deeply...",
+      "Working on it...",
+      "AI neurons firing...",
+      "Brewing intelligence...",
+      "Summoning knowledge...",
+    ];
+
+    const randomMessage =
+      thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)];
+
     const spinner = ora({
-      text: chalk.blue("Sage is thinking..."),
+      text: chalk.blue(randomMessage),
       spinner: "dots12",
     }).start();
 
@@ -434,7 +453,7 @@ Please provide a comprehensive answer based on this information.`;
       });
 
       const formattedReply = this.formatMarkdownForTerminal(reply);
-      console.log(chalk.magenta("Sage:"), formattedReply);
+      console.log(chalk.cyan(">"), formattedReply);
       console.log();
 
       return reply;
@@ -483,6 +502,7 @@ Please provide a comprehensive answer based on this information.`;
   }
 
   async sendSingleMessage(userInput) {
+    let spinner = null;
     try {
       this.conversationHistory.push({
         role: "user",
@@ -533,8 +553,29 @@ Please provide a comprehensive answer based on this information.`;
         }
       }
 
-      const spinner = ora({
-        text: chalk.blue("Sage is thinking..."),
+      // Random thinking messages
+      const singleThinkingMessages = [
+        "Sage is thinking...",
+        "Analyzing your request...",
+        "Processing with AI...",
+        "Consulting the wisdom...",
+        "Crafting a response...",
+        "Gathering thoughts...",
+        "Computing answer...",
+        "Pondering deeply...",
+        "Working on it...",
+        "AI neurons firing...",
+        "Brewing intelligence...",
+        "Summoning knowledge...",
+      ];
+
+      const singleRandomMessage =
+        singleThinkingMessages[
+          Math.floor(Math.random() * singleThinkingMessages.length)
+        ];
+
+      spinner = ora({
+        text: chalk.blue(singleRandomMessage),
         spinner: "dots12",
       }).start();
 
@@ -563,7 +604,7 @@ Please provide a comprehensive answer based on this information.`;
       });
 
       const formattedReply = this.formatMarkdownForTerminal(reply);
-      console.log(formattedReply);
+      console.log(chalk.cyan(">"), formattedReply);
 
       return reply;
     } catch (error) {
