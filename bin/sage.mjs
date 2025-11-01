@@ -4,7 +4,6 @@ const originalLog = console.log;
 console.log = () => {};
 
 import dotenv from "dotenv";
-import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 import ConfigManager from "../src/config/config-manager.mjs";

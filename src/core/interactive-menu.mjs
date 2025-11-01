@@ -6,17 +6,10 @@ import {
   showChangelog,
   performUpdate,
 } from "../utils/github-api.mjs";
-import {
-  startConversationalChat,
-  handleChat,
-  showHistory,
-} from "../chat/chat-handler.mjs";
 import { handleConfig, reloadEnvVars } from "../config/config-handler.mjs";
-import { cleanFiles, testEndpoint } from "../utils/cleanup-utils.mjs";
-import { handleFilesystem } from "../filesystem/filesystem-handler.mjs";
 import { handleTerminal } from "../terminal/terminal-handler.mjs";
 import SetupWizard from "../config/setup-wizard.mjs";
-import ProjectCommands from "../project/project-commands.mjs";
+import HistoryManager from "../utils/history-manager.mjs";
 
 // ---- Patch Inquirer to remove "✔" and "?" ----
 try {
@@ -72,34 +65,23 @@ inquirer.prompt = function (questions) {
 };
 
 let globalChatInstance = null;
+let historyManager = null;
 
 const slashCommands = [
   { name: "/help", description: "Show Sage CLI help and information" },
-  { name: "/project", description: "AI-powered project analysis" },
-  { name: "/chat", description: "Start conversational chat mode" },
-  { name: "/generate", description: "Generate mock server from prompt" },
-  { name: "/files", description: "Secure file explorer" },
   { name: "/terminal", description: "Terminal commands interface" },
   { name: "/history", description: "View command history" },
   { name: "/config", description: "Configuration settings" },
-  { name: "/clean", description: "Clean generated files" },
   { name: "/version", description: "Version control options" },
-  { name: "/test", description: "Test endpoint functionality" },
   { name: "/exit", description: "Exit Sage CLI" },
 ];
 
 async function getClaudeCodeStyleInput() {
   try {
-    const result = await inquirer.prompt([
-      {
-        type: "input",
-        name: "input",
-        message: "> ",
-        prefix: "",
-      },
-    ]);
+    // Use history manager for input with up/down arrow support
+    const input = await historyManager.promptWithHistory("> ");
 
-    if (result.input.trim() === "/") {
+    if (input.trim() === "/") {
       const commandChoice = await inquirer.prompt([
         {
           type: "list",
@@ -116,9 +98,10 @@ async function getClaudeCodeStyleInput() {
       return commandChoice.command;
     }
 
-    return result.input;
+    return input;
   } catch (error) {
     if (error.message && error.message.includes("User force closed")) return "";
+    if (error.message && error.message.includes("User interrupted")) return "";
     console.error(chalk.red("Input error:"), error.message);
     return "";
   }
@@ -129,35 +112,15 @@ export async function startInteractiveMode() {
   displayTips();
   console.log();
 
+  // Initialize history manager
+  historyManager = new HistoryManager();
+  await historyManager.loadHistory();
+
   const setupWizard = new SetupWizard();
   const hasKeys = await setupWizard.quickSetup();
   if (!hasKeys) return;
 
   await reloadEnvVars();
-  const projectCommands = new ProjectCommands();
-  let projectInitialized = false;
-
-  try {
-    const projectHandler = projectCommands.projectHandler;
-    if (projectHandler.isProjectTrusted(process.cwd())) {
-      projectInitialized = await projectCommands.initialize();
-      if (projectInitialized) {
-        const context = projectCommands.getProjectContext();
-        if (context) {
-          console.log(
-            chalk.green(`Project detected: ${context.name} (${context.type})`)
-          );
-          console.log();
-        }
-      }
-    }
-  } catch {
-    console.log(
-      chalk.gray(
-        "Note: Project features will require trust approval when first used."
-      )
-    );
-  }
 
   try {
     const updateInfo = await checkForUpdates(true);
@@ -190,21 +153,19 @@ export async function startInteractiveMode() {
     );
   }
 
-  console.log(
-    chalk.gray("  Type '/' and press enter for command menu or chat directly\n")
-  );
-
+  console.log();
   let continueSession = true;
   while (continueSession) {
     const input = await getClaudeCodeStyleInput();
     if (!input.trim()) continue;
     if (input.startsWith("/")) {
-      continueSession = await handleSlashCommand(
-        input.trim(),
-        projectCommands,
-        projectInitialized
-      );
+      // Only save slash commands to history, not chat prompts
+      await historyManager.addCommand(input.trim());
+      continueSession = await handleSlashCommand(input.trim());
+      // Exit immediately if command returned false
+      if (!continueSession) break;
     } else {
+      // Don't save chat messages to history
       await handleChatMessage(input.trim());
     }
     console.log("\n");
@@ -212,79 +173,48 @@ export async function startInteractiveMode() {
   process.exit(0);
 }
 
-async function handleSlashCommand(
-  command,
-  projectCommands,
-  projectInitialized
-) {
+async function handleSlashCommand(command) {
   const cmd = command.toLowerCase();
   switch (cmd) {
     case "/help":
       console.log(
         chalk.cyan(`
-Sage CLI v0.10.0-beta
+Sage CLI
 
-Always review Sage's responses, especially when running commands. Sage can analyze your code, 
-generate content, and help with development tasks through AI assistance.
+Always review Sage's responses, especially when running commands. Sage can help with
+development tasks through AI assistance.
 
 Usage Modes:
 • REPL: sage (interactive session)
 • Commands: sage --help (show options)
 
 Common Tasks:
-• Ask questions about your code > How does this function work?
-• Generate mock servers > /generate "REST API for users"
-• Explore project structure > /project
+• Ask questions directly - Chat with Sage AI
 • Browse files securely > /files
 • Run terminal commands > /terminal
+• View command history > /history
 
 Interactive Mode Commands:
   /help - Show this help information
-  /project - AI-powered project analysis and insights
-  /chat - Start conversational chat mode with context
-  /generate - Generate mock servers from prompts
-  /files - Secure file explorer with permissions
   /terminal - Terminal commands interface
-  /history - View command and conversation history
+  /history - View command history
   /config - Configuration settings and API keys
-  /clean - Clean generated files and temporary data
   /version - Version control options and updates
-  /test - Test endpoint functionality
   /exit - Exit Sage CLI
       `)
       );
-      break;
-    case "/project":
-      if (projectInitialized) await projectCommands.handleProjectMenu();
-      else
-        console.log(chalk.yellow("No project detected in current directory"));
-      break;
-    case "/chat":
-      await startConversationalChat();
-      break;
-    case "/generate":
-      await handleChat();
-      break;
-    case "/files":
-      await handleFilesystem();
       break;
     case "/terminal":
       await handleTerminal();
       break;
     case "/history":
-      await showHistory();
+      await historyManager.showHistory();
       break;
     case "/config":
       await handleConfig();
       break;
-    case "/clean":
-      await cleanFiles();
-      break;
     case "/version":
       await handleVersionControl();
-      break;
-    case "/test":
-      await testEndpoint();
       break;
     case "/exit":
       console.log(chalk.magenta("\nThanks for using Sage! See you next time!"));

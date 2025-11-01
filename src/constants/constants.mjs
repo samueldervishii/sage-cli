@@ -42,18 +42,11 @@ export const BANNER_GRADIENT = [
   "#FFEAA7",
 ];
 
-// Programming-symbol donut banner (plain ASCII for Windows compatibility)
+// Gradient blocks design
 export const BANNER_ASCII = `
-  <=======]}======
-    --.   /|
-   _\"/_.'/
- .'._._,.'
- :/ \{}/
-(L  /--',----._
-    |          \\
-   : /-\ .'-'\ / |
-    \\, ||    \|
-     \/ ||    ||
+ █▓▒░
+ ▒▓█▓
+ ░▒▓█
 `;
 
 export function getQuickCommands() {
