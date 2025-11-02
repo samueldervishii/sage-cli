@@ -76,6 +76,8 @@ class ConfigManager {
         return decrypted;
       }
       // Old format with hardcoded salt: iv:encrypted (2 parts)
+      // Note: Uses hardcoded salt for backward compatibility with older configs
+      // This is intentionally kept as-is to not break existing installations
       else if (parts.length === 2) {
         const iv = Buffer.from(parts[0], "hex");
         const encrypted = parts[1];
@@ -85,15 +87,27 @@ class ConfigManager {
         decrypted += decipher.final("utf8");
         return decrypted;
       }
-      // Legacy format: fallback to deprecated method for backward compatibility
+      // Legacy format: deprecated createDecipher (removed in Node 17+)
+      // Gracefully handle by returning encrypted text if method unavailable
       else {
-        const decipher = crypto.createDecipher(
-          "aes-256-cbc",
-          this.encryptionKey
-        );
-        let decrypted = decipher.update(encryptedText, "hex", "utf8");
-        decrypted += decipher.final("utf8");
-        return decrypted;
+        // Check if deprecated method exists (Node <17)
+        if (typeof crypto.createDecipher === "function") {
+          const decipher = crypto.createDecipher(
+            "aes-256-cbc",
+            this.encryptionKey
+          );
+          let decrypted = decipher.update(encryptedText, "hex", "utf8");
+          decrypted += decipher.final("utf8");
+          return decrypted;
+        } else {
+          // Method removed in Node 17+, cannot decrypt legacy format
+          console.warn(
+            chalk.yellow(
+              "Warning: Cannot decrypt legacy format on Node.js 17+. Please reconfigure API keys."
+            )
+          );
+          return encryptedText;
+        }
       }
     } catch {
       return encryptedText;

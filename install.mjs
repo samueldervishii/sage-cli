@@ -204,7 +204,7 @@ async function installFromGithub() {
       await fs.rm(sageDir, { recursive: true, force: true });
       printStatus("Removed existing installation...");
     } catch (e) {
-      throw new Error("Failed to remove existing installation", e);
+      throw new Error(`Failed to remove existing installation: ${e.message}`);
     }
     printStatus("Downloading from GitHub...");
     const downloadUrl = `https://github.com/${REPO}/archive/main.tar.gz`;

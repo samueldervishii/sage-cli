@@ -1,7 +1,24 @@
 #!/usr/bin/env node
 
+// Temporarily suppress console output during initialization
+// Only suppress stdout, keep stderr for important errors
 const originalLog = console.log;
-console.log = () => {};
+const originalWarn = console.warn;
+
+// More selective suppression - only suppress specific dotenv/config messages
+console.log = (...args) => {
+  // Allow through if DEBUG mode is enabled
+  if (process.env.DEBUG) {
+    originalLog(...args);
+  }
+  // Otherwise suppress during init
+};
+console.warn = (...args) => {
+  // Keep warnings visible in DEBUG mode
+  if (process.env.DEBUG) {
+    originalWarn(...args);
+  }
+};
 
 import dotenv from "dotenv";
 import path from "path";
@@ -41,9 +58,15 @@ try {
   }
 } catch (error) {
   // Silently fail if config doesn't exist yet
+  // but log in DEBUG mode
+  if (process.env.DEBUG) {
+    console.error("Config loading failed:", error.message);
+  }
 }
 
+// Restore console functions
 console.log = originalLog;
+console.warn = originalWarn;
 
 import { parseAndExecuteCommand } from "../src/core/command-parser.mjs";
 

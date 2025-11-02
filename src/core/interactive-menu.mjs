@@ -52,9 +52,29 @@ export async function startInteractiveMode() {
   const readline = await import("readline");
 
   // Keep stdin in raw mode for persistent REPL
+  const wasRawMode = process.stdin.isTTY && process.stdin.isRaw ? true : false;
   if (process.stdin.isTTY && process.stdin.setRawMode) {
     process.stdin.setRawMode(true);
   }
+
+  // Cleanup function to restore terminal state
+  const cleanupTerminal = () => {
+    if (process.stdin.isTTY && process.stdin.setRawMode) {
+      try {
+        process.stdin.setRawMode(wasRawMode);
+      } catch (error) {
+        // Ignore errors during cleanup
+      }
+    }
+  };
+
+  // Register cleanup handlers
+  process.on("exit", cleanupTerminal);
+  process.on("uncaughtException", err => {
+    cleanupTerminal();
+    console.error(chalk.red("\nUnexpected error:"), err.message);
+    process.exit(1);
+  });
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -70,6 +90,8 @@ export async function startInteractiveMode() {
   };
 
   rl.on("close", () => {
+    cleanupTerminal();
+
     const farewells = [
       chalk.magenta("\nThanks for using Sage! Goodbye!"),
       chalk.magenta("\nSee you soon, traveler of code."),
@@ -86,7 +108,8 @@ export async function startInteractiveMode() {
     const randomFarewell =
       farewells[Math.floor(Math.random() * farewells.length)];
     console.log(randomFarewell);
-    setTimeout(() => process.exit(0), 120);
+    // Increased timeout to allow I/O operations to complete
+    setTimeout(() => process.exit(0), 500);
   });
 
   rl.on("line", async input => {
