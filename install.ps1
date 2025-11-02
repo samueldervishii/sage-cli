@@ -169,7 +169,6 @@ function Test-Installation {
     
     if (Test-Command $BINARY_NAME) {
         Write-Success "$BINARY_NAME is installed and available in PATH"
-        Write-Status "Try running: $BINARY_NAME --help"
         return $true
     } elseif (Test-Path $BinaryPath) {
         Write-Warning "$BINARY_NAME installed but not in PATH"
@@ -243,25 +242,6 @@ function Install-SageCLI {
 
 $null = Register-EngineEvent PowerShell.Exiting -Action {
     Write-Error "Installation interrupted"
-}
-
-if ($args -contains "-h" -or $args -contains "--help" -or $args -contains "/?") {
-    Write-Host @"
-Sage CLI PowerShell Installer
-
-Usage: .\install.ps1 [OPTIONS]
-
-Options:
-    -Force        Skip confirmation prompts
-    -AddToPath    Automatically add to PATH (default: true)
-    -h, --help    Show this help message
-
-Examples:
-    .\install.ps1                    # Interactive installation
-    .\install.ps1 -Force             # Silent installation
-    .\install.ps1 -AddToPath:`$false   # Don't add to PATH
-"@
-    exit 0
 }
 
 Install-SageCLI

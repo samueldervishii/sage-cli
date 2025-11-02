@@ -277,6 +277,9 @@ export async function checkForUpdates(silent = false) {
 
 export async function performUpdate() {
   try {
+    // Check if Windows
+    const isWindows = process.platform === "win32";
+
     const updateInfo = await checkForUpdates(true);
 
     if (!updateInfo) {
@@ -299,6 +302,28 @@ export async function performUpdate() {
 
     if (!confirmUpdate) {
       console.log("Update cancelled.");
+      return;
+    }
+
+    // Windows-specific update handling
+    if (isWindows) {
+      console.log(chalk.yellow("\nWindows Update Instructions:"));
+      console.log(
+        chalk.white(
+          "\nPlease run the following command in PowerShell or Git Bash:"
+        )
+      );
+      console.log(
+        chalk.cyan(`\nbash -c "$(curl -fsSL ${URLS.INSTALL_SCRIPT})"`)
+      );
+      console.log(
+        chalk.gray(
+          "\nNote: Git Bash or WSL is required. If you don't have Git Bash,"
+        )
+      );
+      console.log(
+        chalk.gray("download it from: https://git-scm.com/download/win")
+      );
       return;
     }
 
@@ -348,6 +373,7 @@ export async function performUpdate() {
 
       showProgress(++currentStep, steps[3]);
 
+      // Check if bash is available (for Unix/Linux/macOS)
       await new Promise((resolve, reject) => {
         const child = spawn("bash", [scriptPath], {
           stdio: ["ignore", "ignore", "pipe"],

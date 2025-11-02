@@ -130,7 +130,6 @@ verify_installation() {
     
     if command_exists $BINARY_NAME; then
         print_success "$BINARY_NAME is installed and available in PATH"
-        print_status "Try running: $BINARY_NAME --help"
         return 0
     else
         local install_dir="$HOME/.local/bin"

@@ -140,8 +140,9 @@ When asked to generate code, provide clean, working examples with explanations.`
       spinner = ora({
         text: chalk.blue(singleRandomMessage),
         spinner: "dots12",
+        isEnabled: process.stdout.isTTY,
+        discardStdin: false, // keeps readline open
       }).start();
-
       const cleanHistory = this.conversationHistory.map(msg => ({
         role: msg.role,
         parts: msg.parts,

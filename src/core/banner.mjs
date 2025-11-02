@@ -39,6 +39,7 @@ export async function displayBanner() {
     `   Sage CLI v${currentVersion} - ${authorLink}`,
     `   ${chalk.cyan("Gemini 2.0 Flash Exp")}`,
     `   ${chalk.gray(currentDir)}`,
+    `   ${chalk.gray("Type .exit to quit")}`,
   ];
 
   // Display banner with info on the right
@@ -58,61 +59,6 @@ export async function showVersion() {
   console.log(chalk.cyan(`Version: ${packageData.version}`));
   console.log(chalk.gray(`Node.js: ${process.version}`));
   console.log(chalk.gray(`Platform: ${process.platform} ${process.arch}`));
-}
-
-export function displayTips() {
-  const DIM = chalk.dim;
-  const CYAN_BOLD = chalk.cyan.bold;
-  const GREEN = chalk.green;
-  const GRAY = chalk.gray;
-  const YELLOW = chalk.yellow;
-  const BOLD = chalk.bold;
-
-  // We are removing the borders, so we only define the content.
-  // We'll keep a consistent indentation of 2 spaces for all lines.
-  const INDENT = "  ";
-
-  // --- Header Line (Centered and stylized) ---
-  const HEADER_TEXT = "Getting Started"; // 15 chars
-  // Creating a decorative look: ★ Getting Started ★ (19 visible chars)
-  const HEADER_TEXT_DECORATED = CYAN_BOLD(HEADER_TEXT);
-  // The original box padding was 22 spaces on the left to center it within the 63-char width.
-  // We add this padding after our base INDENT.
-  const HEADER_LINE_PADDING = " ".repeat(19);
-  const HEADER_LINE = INDENT + HEADER_LINE_PADDING + HEADER_TEXT_DECORATED;
-
-  // --- Tip 1 Line ---
-  const TIP_1_MAIN_TEXT = BOLD(
-    "Type your questions directly - Sage will respond"
-  );
-  const TIP_1_CONTENT = GREEN("●") + " " + TIP_1_MAIN_TEXT;
-  const TIP_1_LINE = INDENT + TIP_1_CONTENT;
-
-  // --- Tip 2 Line ---
-  const TIP_2_MAIN_TEXT = BOLD("Try '/files' for secure file exploration");
-  const TIP_2_CONTENT = GREEN("●") + " " + TIP_2_MAIN_TEXT;
-  const TIP_2_LINE = INDENT + TIP_2_CONTENT;
-
-  // --- Tip 3 Line ---
-  const TIP_3_MAIN_TEXT = BOLD(
-    "Run 'sage setup' first to configure your API keys"
-  );
-  const TIP_3_CONTENT = GREEN("●") + " " + TIP_3_MAIN_TEXT;
-  const TIP_3_LINE = INDENT + TIP_3_CONTENT;
-
-  // --- Footer Line ---
-  const FOOTER_TEXT =
-    "Type '/' and press enter for command menu or chat directly";
-  const FOOTER_LINE = INDENT + GRAY(FOOTER_TEXT);
-
-  // Print the lines with an empty line above and below the tips for spacing
-  console.log("");
-  console.log(HEADER_LINE);
-  console.log(TIP_1_LINE);
-  console.log(TIP_2_LINE);
-  console.log(TIP_3_LINE);
-  console.log(FOOTER_LINE);
-  console.log("");
 }
 
 export async function getBuildInfo() {

@@ -1,120 +1,15 @@
 import chalk from "chalk";
-import inquirer from "inquirer";
-import { displayBanner, showVersion, displayTips } from "./banner.mjs";
-import {
-  checkForUpdates,
-  showChangelog,
-  performUpdate,
-} from "../utils/github-api.mjs";
-import { handleConfig, reloadEnvVars } from "../config/config-handler.mjs";
-import { handleTerminal } from "../terminal/terminal-handler.mjs";
+import { displayBanner } from "./banner.mjs";
+import { checkForUpdates } from "../utils/github-api.mjs";
+import { reloadEnvVars } from "../config/config-handler.mjs";
 import SetupWizard from "../config/setup-wizard.mjs";
-import HistoryManager from "../utils/history-manager.mjs";
-
-// ---- Patch Inquirer to remove "✔" and "?" ----
-try {
-  const basePrompt = await import("inquirer/lib/prompts/base.js");
-  const Prompt = basePrompt.default || basePrompt.Prompt;
-  if (Prompt && Prompt.prototype && Prompt.prototype.render) {
-    const oldRender = Prompt.prototype.render;
-    Prompt.prototype.render = function (...args) {
-      oldRender.apply(this, args);
-      if (this.screen && this.screen.render) {
-        const origRender = this.screen.render;
-        this.screen.render = function (content, bottomContent) {
-          if (
-            content &&
-            typeof content === "string" &&
-            content.includes("✔")
-          ) {
-            content = content.replace(/✔/g, "");
-          }
-          try {
-            if (content && typeof content === "string") {
-              // Strip default inquirer decorations on Windows/ANSI-limited terminals
-              content = content.replace(/^\?\s+/gm, ""); // leading question mark
-              content = content.replace(/^[✔✖✓]\s*/gm, ""); // ticks/crosses
-              content = content.replace(/^[❯›»]\s*/gm, ""); // list pointers
-            }
-          } catch {}
-          return origRender.call(this, content, bottomContent);
-        };
-      }
-    };
-  }
-} catch (err) {
-  if (process.env.DEBUG) console.log("Inquirer patch skipped:", err.message);
-}
-
-inquirer.Symbols = {
-  ...inquirer.Symbols,
-  check: "",
-  prefix: "",
-  pointer: "",
-  radioOn: "",
-  radioOff: "",
-  // Remove the default question mark entirely
-  questionMark: "",
-};
-
-const originalPrompt = inquirer.prompt;
-inquirer.prompt = function (questions) {
-  if (!Array.isArray(questions)) questions = [questions];
-  questions = questions.map(q => ({ ...q, prefix: "" }));
-  return originalPrompt.call(this, questions);
-};
+import SimpleChat from "../chat/simple-chat.mjs";
 
 let globalChatInstance = null;
-let historyManager = null;
-
-const slashCommands = [
-  { name: "/help", description: "Show Sage CLI help and information" },
-  { name: "/terminal", description: "Terminal commands interface" },
-  { name: "/history", description: "View command history" },
-  { name: "/config", description: "Configuration settings" },
-  { name: "/version", description: "Version control options" },
-  { name: "/exit", description: "Exit Sage CLI" },
-];
-
-async function getClaudeCodeStyleInput() {
-  try {
-    // Use history manager for input with up/down arrow support
-    const input = await historyManager.promptWithHistory("> ");
-
-    if (input.trim() === "/") {
-      const commandChoice = await inquirer.prompt([
-        {
-          type: "list",
-          name: "command",
-          message: "Select a command:",
-          prefix: "",
-          choices: slashCommands.map(cmd => ({
-            name: `${chalk.yellow(cmd.name)} - ${chalk.gray(cmd.description)}`,
-            value: cmd.name,
-          })),
-          pageSize: 12,
-        },
-      ]);
-      return commandChoice.command;
-    }
-
-    return input;
-  } catch (error) {
-    if (error.message && error.message.includes("User force closed")) return "";
-    if (error.message && error.message.includes("User interrupted")) return "";
-    console.error(chalk.red("Input error:"), error.message);
-    return "";
-  }
-}
 
 export async function startInteractiveMode() {
   await displayBanner();
-  displayTips();
   console.log();
-
-  // Initialize history manager
-  historyManager = new HistoryManager();
-  await historyManager.loadHistory();
 
   const setupWizard = new SetupWizard();
   const hasKeys = await setupWizard.quickSetup();
@@ -142,7 +37,6 @@ export async function startInteractiveMode() {
   }
 
   try {
-    const SimpleChat = (await import("../chat/simple-chat.mjs")).default;
     globalChatInstance = new SimpleChat();
     await globalChatInstance.initialize();
   } catch {
@@ -151,79 +45,88 @@ export async function startInteractiveMode() {
         "Chat functionality unavailable. Run 'sage setup' to configure API keys."
       )
     );
+    return;
   }
 
-  console.log();
-  let continueSession = true;
-  while (continueSession) {
-    const input = await getClaudeCodeStyleInput();
-    if (!input.trim()) continue;
-    if (input.startsWith("/")) {
-      // Only save slash commands to history, not chat prompts
-      await historyManager.addCommand(input.trim());
-      continueSession = await handleSlashCommand(input.trim());
-      // Exit immediately if command returned false
-      if (!continueSession) break;
-    } else {
-      // Don't save chat messages to history
-      await handleChatMessage(input.trim());
+  // --- REPL-style Chat Mode ---
+  const readline = await import("readline");
+
+  // Keep stdin in raw mode for persistent REPL
+  if (process.stdin.isTTY && process.stdin.setRawMode) {
+    process.stdin.setRawMode(true);
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: true,
+  });
+
+  let isProcessing = false;
+  let hasExited = false;
+
+  const showPrompt = () => {
+    if (!hasExited && !isProcessing) rl.prompt(true);
+  };
+
+  rl.on("close", () => {
+    const farewells = [
+      chalk.magenta("\nThanks for using Sage! Goodbye!"),
+      chalk.magenta("\nSee you soon, traveler of code."),
+      chalk.magenta("\nGoodbye — may your stack traces be clean."),
+      chalk.magenta("\nSage signing off... until next time."),
+      chalk.magenta("\nAdios! Keep building something amazing."),
+      chalk.magenta("\nSee ya! Remember: stay curious."),
+      chalk.magenta("\nFarewell, my human friend."),
+      chalk.magenta("\nGoodbye for now — knowledge never sleeps."),
+      chalk.magenta("\nSage rests... but wisdom remains."),
+      chalk.magenta("\nUntil we meet again... stay sharp."),
+    ];
+
+    const randomFarewell =
+      farewells[Math.floor(Math.random() * farewells.length)];
+    console.log(randomFarewell);
+    setTimeout(() => process.exit(0), 120);
+  });
+
+  rl.on("line", async input => {
+    if (hasExited || isProcessing) return;
+
+    const trimmed = input.trim();
+
+    if (trimmed === ".exit") {
+      hasExited = true;
+      rl.close();
+      return;
     }
-    console.log("\n");
-  }
-  process.exit(0);
-}
 
-async function handleSlashCommand(command) {
-  const cmd = command.toLowerCase();
-  switch (cmd) {
-    case "/help":
-      console.log(
-        chalk.cyan(`
-Sage CLI
+    if (!trimmed) {
+      showPrompt();
+      return;
+    }
 
-Always review Sage's responses, especially when running commands. Sage can help with
-development tasks through AI assistance.
+    isProcessing = true;
 
-Usage Modes:
-• REPL: sage (interactive session)
-• Commands: sage --help (show options)
+    try {
+      await handleChatMessage(trimmed);
+      console.log();
+    } catch (err) {
+      console.error(chalk.red("Unexpected error:"), err.message);
+      if (process.env.DEBUG) console.error(err.stack);
+    } finally {
+      isProcessing = false;
+      showPrompt();
+    }
+  });
 
-Common Tasks:
-• Ask questions directly - Chat with Sage AI
-• Browse files securely > /files
-• Run terminal commands > /terminal
-• View command history > /history
-
-Interactive Mode Commands:
-  /help - Show this help information
-  /terminal - Terminal commands interface
-  /history - View command history
-  /config - Configuration settings and API keys
-  /version - Version control options and updates
-  /exit - Exit Sage CLI
-      `)
-      );
-      break;
-    case "/terminal":
-      await handleTerminal();
-      break;
-    case "/history":
-      await historyManager.showHistory();
-      break;
-    case "/config":
-      await handleConfig();
-      break;
-    case "/version":
-      await handleVersionControl();
-      break;
-    case "/exit":
-      console.log(chalk.magenta("\nThanks for using Sage! See you next time!"));
-      return false;
-    default:
-      console.log(chalk.red(`Unknown command: ${command}`));
-      console.log(chalk.gray("Type /help to see available commands"));
-  }
-  return true;
+  rl.on("SIGINT", () => {
+    if (!hasExited) {
+      hasExited = true;
+      rl.close();
+    }
+  });
+  rl.setPrompt(chalk.cyan("> "));
+  showPrompt();
 }
 
 async function handleChatMessage(message) {
@@ -239,39 +142,8 @@ async function handleChatMessage(message) {
     await globalChatInstance.sendSingleMessage(message);
   } catch (error) {
     console.log(chalk.red("Error processing message:"), error.message);
-    if (error.message.includes("GEMINI_API_KEY"))
+    if (error.message.includes("GEMINI_API_KEY")) {
       console.log(chalk.yellow("Run 'sage setup' to configure your API keys"));
+    }
   }
-}
-
-export async function handleVersionControl() {
-  const { versionAction } = await inquirer.prompt([
-    {
-      type: "list",
-      name: "versionAction",
-      message: chalk.cyan("Version Control Options:"),
-      prefix: "",
-      choices: [
-        { name: "Show Current Version", value: "version" },
-        { name: "View Changelog", value: "changelog" },
-        { name: "Update to Latest Version", value: "update" },
-        { name: "Back to Main Menu", value: "back" },
-      ],
-    },
-  ]);
-
-  switch (versionAction) {
-    case "version":
-      await showVersion();
-      break;
-    case "changelog":
-      await showChangelog();
-      break;
-    case "update":
-      await performUpdate();
-      break;
-    case "back":
-      return;
-  }
-  console.log();
 }

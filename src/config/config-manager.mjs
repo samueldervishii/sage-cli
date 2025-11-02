@@ -44,13 +44,15 @@ class ConfigManager {
     try {
       // Generate a random IV for each encryption
       const iv = crypto.randomBytes(16);
-      // Ensure key is 32 bytes for AES-256
-      const key = crypto.scryptSync(this.encryptionKey, "salt", 32);
+      // Generate a random salt for key derivation
+      const salt = crypto.randomBytes(16);
+      // Derive key using scrypt with random salt
+      const key = crypto.scryptSync(this.encryptionKey, salt, 32);
       const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
       let encrypted = cipher.update(text, "utf8", "hex");
       encrypted += cipher.final("hex");
-      // Prepend IV to encrypted data (IV is not secret)
-      return iv.toString("hex") + ":" + encrypted;
+      // Format: salt:iv:encrypted (both salt and IV needed for decryption)
+      return salt.toString("hex") + ":" + iv.toString("hex") + ":" + encrypted;
     } catch {
       console.warn(chalk.yellow("Warning: Encryption failed, storing plain"));
       return text;
@@ -60,10 +62,21 @@ class ConfigManager {
   decrypt(encryptedText) {
     if (!encryptedText) return encryptedText;
     try {
-      // Check if this is new format (with IV) or old format (without)
-      if (encryptedText.includes(":")) {
-        // New format: extract IV from encrypted data
-        const parts = encryptedText.split(":");
+      const parts = encryptedText.split(":");
+
+      // New format with salt: salt:iv:encrypted (3 parts)
+      if (parts.length === 3) {
+        const salt = Buffer.from(parts[0], "hex");
+        const iv = Buffer.from(parts[1], "hex");
+        const encrypted = parts[2];
+        const key = crypto.scryptSync(this.encryptionKey, salt, 32);
+        const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+        let decrypted = decipher.update(encrypted, "hex", "utf8");
+        decrypted += decipher.final("utf8");
+        return decrypted;
+      }
+      // Old format with hardcoded salt: iv:encrypted (2 parts)
+      else if (parts.length === 2) {
         const iv = Buffer.from(parts[0], "hex");
         const encrypted = parts[1];
         const key = crypto.scryptSync(this.encryptionKey, "salt", 32);
@@ -71,8 +84,9 @@ class ConfigManager {
         let decrypted = decipher.update(encrypted, "hex", "utf8");
         decrypted += decipher.final("utf8");
         return decrypted;
-      } else {
-        // Old format: fallback to deprecated method for backward compatibility
+      }
+      // Legacy format: fallback to deprecated method for backward compatibility
+      else {
         const decipher = crypto.createDecipher(
           "aes-256-cbc",
           this.encryptionKey

@@ -253,7 +253,6 @@ async function verifyInstallation(installDir, binaryPath) {
 
   if (commandExists(binaryName.replace(".cmd", ""))) {
     printSuccess(`${BINARY_NAME} is installed and available in PATH`);
-    printStatus(`Try running: ${BINARY_NAME} --help`);
     return true;
   } else {
     try {
