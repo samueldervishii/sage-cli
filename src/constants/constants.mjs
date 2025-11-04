@@ -34,10 +34,5 @@ export const BANNER_GRADIENT = [
   "#FFEAA7",
 ];
 
-// Gradient blocks design
-export const BANNER_ASCII = `
- █▓▒░
- ▒▓█▓
- ░▒▓█
- ░▒▓█
-`;
+// Gradient blocks design (horizontal)
+export const BANNER_ASCII = ` █▓▒░▒▓█▓░▒▓█ `;

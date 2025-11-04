@@ -7,7 +7,6 @@ import gradient from "gradient-string";
 import {
   BANNER_GRADIENT,
   BANNER_ASCII,
-  DEFAULTS,
   PATHS,
 } from "../constants/constants.mjs";
 
@@ -15,40 +14,109 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export async function displayBanner() {
-  const banner = gradient(BANNER_GRADIENT)(BANNER_ASCII);
-  const bannerLines = banner.split("\n").filter(line => line.trim());
-
+  // Get version
   const packagePath = path.join(__dirname, PATHS.PACKAGE);
-  let currentVersion = DEFAULTS.VERSION;
+  let version = "1.0.0";
   try {
     const packageData = await fs.readJson(packagePath);
-    currentVersion = packageData.version;
-  } catch (error) {
-    console.log(chalk.yellow("Falling back to manual version..."));
-    console.log("Something went wrong: ", error.message);
+    version = packageData.version;
+  } catch {
+    // Use default version
   }
 
-  // Get current directory
+  // Get current directory and username
   const currentDir = process.cwd();
+  const username = process.env.USER || process.env.USERNAME || "";
 
-  // Create clickable GitHub link for author with underline
-  const authorLink = `\u001b]8;;https://github.com/samueldervishii\u0007${chalk.underline("Samuel")}\u001b]8;;\u0007`;
+  // Create welcome message
+  const welcomeMessage = username
+    ? `Welcome back ${username}!`
+    : "Welcome back!";
 
-  // Create info lines
-  const infoLines = [
-    `   Sage CLI v${currentVersion} - ${authorLink}`,
-    `   ${chalk.cyan("Gemini 2.0 Flash Exp")}`,
-    `   ${chalk.gray(currentDir)}`,
-    `   ${chalk.gray("Type .exit to quit")}`,
+  // ASCII art with gradient (horizontal display from constants)
+  const asciiHorizontal = gradient(BANNER_GRADIENT)(BANNER_ASCII);
+
+  // Box drawing
+  const leftColWidth = 44;
+  const rightColWidth = 66;
+
+  // Helper to pad text
+  const pad = (text, width, align = "left") => {
+    // Strip ANSI codes to get actual length
+    // eslint-disable-next-line no-control-regex
+    const stripped = text
+      .replace(/\u001b\[[0-9;]*m/g, "")
+      .replace(/\u001b]8;;[^\u0007]*\u0007/g, "")
+      .replace(/\u001b]8;;\u0007/g, "");
+    const padding = width - stripped.length;
+    if (align === "center") {
+      const leftPad = Math.floor(padding / 2);
+      const rightPad = padding - leftPad;
+      return " ".repeat(leftPad) + text + " ".repeat(rightPad);
+    }
+    return text + " ".repeat(Math.max(0, padding));
+  };
+
+  // Create version text for top border
+  const versionText = ` Sage CLI v${version} `;
+  const versionTextLength = versionText.length;
+  const leftDashes = Math.floor((leftColWidth - versionTextLength) / 2);
+  const rightDashes = leftColWidth - leftDashes - versionTextLength;
+
+  // Create left column content (centered)
+  const leftContent = [
+    "",
+    welcomeMessage,
+    "",
+    asciiHorizontal,
+    "",
+    chalk.cyan("Gemini 2.0 Flash Exp"),
+    chalk.gray(currentDir),
   ];
 
-  // Display banner with info on the right
+  // Create right column content with bold "Tips"
+  const rightContent = [
+    { text: chalk.bold("Tips for getting started"), align: "center" },
+    { text: "", align: "left" },
+    { text: chalk.gray("  -> Type .exit to quit"), align: "left" },
+  ];
+
+  // Build the box
   console.log();
-  for (let i = 0; i < Math.max(bannerLines.length, infoLines.length); i++) {
-    const bannerLine = bannerLines[i] || "";
-    const infoLine = infoLines[i] || "";
-    console.log(bannerLine + infoLine);
+  console.log(
+    chalk.gray("╭") +
+      chalk.gray("─".repeat(leftDashes)) +
+      chalk.white(versionText) +
+      chalk.gray("─".repeat(rightDashes)) +
+      chalk.gray("┬") +
+      chalk.gray("─".repeat(rightColWidth)) +
+      chalk.gray("╮")
+  );
+
+  // Process lines
+  const maxLines = Math.max(leftContent.length, rightContent.length);
+  for (let i = 0; i < maxLines; i++) {
+    const left = leftContent[i] || "";
+    const right = rightContent[i] || { text: "", align: "left" };
+
+    const leftCell = pad(left, leftColWidth, "center");
+    const rightCell =
+      typeof right === "string"
+        ? pad(right, rightColWidth)
+        : pad(right.text, rightColWidth, right.align);
+
+    console.log(
+      chalk.gray("│") + leftCell + chalk.gray("│") + rightCell + chalk.gray("│")
+    );
   }
+
+  console.log(
+    chalk.gray("╰") +
+      chalk.gray("─".repeat(leftColWidth)) +
+      chalk.gray("┴") +
+      chalk.gray("─".repeat(rightColWidth)) +
+      chalk.gray("╯")
+  );
   console.log();
 }
 

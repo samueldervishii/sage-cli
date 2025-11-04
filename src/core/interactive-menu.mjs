@@ -51,20 +51,24 @@ export async function startInteractiveMode() {
   // --- REPL-style Chat Mode ---
   const readline = await import("readline");
 
-  // Keep stdin in raw mode for persistent REPL
-  const wasRawMode = process.stdin.isTTY && process.stdin.isRaw ? true : false;
-  if (process.stdin.isTTY && process.stdin.setRawMode) {
-    process.stdin.setRawMode(true);
-  }
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: true,
+  });
 
-  // Cleanup function to restore terminal state
+  // Store readline instance globally so it can be paused during inquirer prompts
+  global.mainReadline = rl;
+
+  // Cleanup function to close readline properly
   const cleanupTerminal = () => {
-    if (process.stdin.isTTY && process.stdin.setRawMode) {
-      try {
-        process.stdin.setRawMode(wasRawMode);
-      } catch (error) {
-        // Ignore errors during cleanup
+    try {
+      if (rl && !rl.closed) {
+        rl.close();
       }
+      global.mainReadline = null;
+    } catch {
+      // Ignore errors during cleanup
     }
   };
 
@@ -74,12 +78,6 @@ export async function startInteractiveMode() {
     cleanupTerminal();
     console.error(chalk.red("\nUnexpected error:"), err.message);
     process.exit(1);
-  });
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: true,
   });
 
   let isProcessing = false;
@@ -164,9 +162,18 @@ async function handleChatMessage(message) {
     }
     await globalChatInstance.sendSingleMessage(message);
   } catch (error) {
-    console.log(chalk.red("Error processing message:"), error.message);
-    if (error.message.includes("GEMINI_API_KEY")) {
+    // Error is already displayed in SimpleChat with user-friendly message
+    // Only show additional help for API key issues
+    if (
+      error.message.includes("GEMINI_API_KEY") ||
+      error.message.includes("API key")
+    ) {
       console.log(chalk.yellow("Run 'sage setup' to configure your API keys"));
+    }
+
+    // Show full error in debug mode
+    if (process.env.DEBUG) {
+      console.log(chalk.gray(`Debug: ${error.stack}`));
     }
   }
 }
