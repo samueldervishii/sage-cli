@@ -43,7 +43,7 @@ export async function displayBanner() {
   // Helper to pad text
   const pad = (text, width, align = "left") => {
     // Strip ANSI codes to get actual length
-    // eslint-disable-next-line no-control-regex
+
     const stripped = text
       .replace(/\u001b\[[0-9;]*m/g, "")
       .replace(/\u001b]8;;[^\u0007]*\u0007/g, "")

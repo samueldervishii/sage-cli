@@ -3,6 +3,17 @@ import js from "@eslint/js";
 export default [
   js.configs.recommended,
   {
+    ignores: [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "*.min.js",
+      "logs/**",
+      "generated/**",
+      "conversations/**",
+    ],
+  },
+  {
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -34,14 +45,5 @@ export default [
       semi: ["error", "always"],
       quotes: ["error", "double", { allowTemplateLiterals: true }],
     },
-    ignores: [
-      "node_modules/**",
-      "dist/**",
-      "build/**",
-      "*.min.js",
-      "logs/**",
-      "generated/**",
-      "conversations/**",
-    ],
   },
 ];
