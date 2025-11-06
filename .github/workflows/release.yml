@@ -58,7 +58,14 @@ jobs:
             exit 1
           fi
 
-          COMMIT_MESSAGES=$(git log --oneline -10 --pretty=format:"%s")
+          # Get commits since last version bump (excluding merge and version bump commits)
+          LAST_VERSION_COMMIT=$(git log --grep="bump version" --format="%H" -1)
+          if [ -n "$LAST_VERSION_COMMIT" ]; then
+            COMMIT_MESSAGES=$(git log ${LAST_VERSION_COMMIT}..HEAD --oneline --pretty=format:"%s" | grep -v -i "bump version" | grep -v "^Merge")
+          else
+            # If no version bump commit found, check last 10 commits
+            COMMIT_MESSAGES=$(git log --oneline -10 --pretty=format:"%s" | grep -v -i "bump version" | grep -v "^Merge")
+          fi
 
           # Check for breaking changes (bump major version)
           if echo "$COMMIT_MESSAGES" | grep -qE "^(feat|feature)\(.*\)!:|^(fix|chore)\(.*\)!:|BREAKING CHANGE"; then
