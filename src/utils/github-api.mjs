@@ -419,7 +419,7 @@ export async function performUpdate() {
       // Clean up temp directory on error
       try {
         await fs.remove(tempDir);
-      } catch (cleanupError) {
+      } catch (_cleanupError) {
         // Ignore cleanup errors
       }
       console.error(

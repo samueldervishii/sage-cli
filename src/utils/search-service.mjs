@@ -116,7 +116,71 @@ class SearchService {
     }
   }
 
+  /**
+   * Validate search query input
+   * @param {string} query - Search query to validate
+   * @returns {{valid: boolean, error?: string}}
+   */
+  validateSearchQuery(query) {
+    // Check if query is provided
+    if (!query || typeof query !== "string") {
+      return {
+        valid: false,
+        error: "Search query must be a non-empty string",
+      };
+    }
+
+    // Trim whitespace
+    query = query.trim();
+
+    // Check minimum length
+    if (query.length < 2) {
+      return {
+        valid: false,
+        error: "Search query must be at least 2 characters long",
+      };
+    }
+
+    // Check maximum length (reasonable limit for search queries)
+    if (query.length > 500) {
+      return {
+        valid: false,
+        error: "Search query is too long (max 500 characters)",
+      };
+    }
+
+    // Check for suspicious patterns that might indicate injection attempts
+    const suspiciousPatterns = [
+      /[<>]/, // HTML/XML tags
+      /javascript:/i, // JavaScript protocol
+      /on\w+=/i, // Event handlers
+    ];
+
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(query)) {
+        return {
+          valid: false,
+          error: "Search query contains invalid characters",
+        };
+      }
+    }
+
+    return {
+      valid: true,
+      query: query, // Return sanitized query
+    };
+  }
+
   async search(query, options = {}) {
+    // Validate search query
+    const validation = this.validateSearchQuery(query);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    // Use sanitized query
+    query = validation.query;
+
     if (!this.isConnected) {
       const connected = await this.connect();
       if (!connected) {
@@ -276,7 +340,7 @@ class SearchService {
             }
             formatted += "\n";
           }
-        } catch (error) {
+        } catch (_error) {
           // JSON parse failed, treat as plain text
           if (process.env.DEBUG) {
             console.log(

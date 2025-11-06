@@ -130,7 +130,7 @@ async function downloadAndExtract(url, tempDir) {
       // Clean up temp file
       try {
         await fs.unlink(tempFile);
-      } catch (e) {
+      } catch (_e) {
         // Ignore cleanup errors
       }
     }
@@ -314,7 +314,7 @@ async function setupPath(installDir) {
       printStatus("Please restart your terminal for changes to take effect");
       printStatus(`Then you can run: ${BINARY_NAME}`);
       return;
-    } catch (error) {
+    } catch (_error) {
       printWarning("Could not automatically add to PATH");
       const instructions = getShellInstructions(installDir);
       printStatus(instructions.message);

@@ -128,6 +128,9 @@ export async function startInteractiveMode() {
 
     isProcessing = true;
 
+    // Move to new line after input (readline already shows the input on prompt line)
+    process.stdout.write("\n");
+
     try {
       await handleChatMessage(trimmed);
       console.log();

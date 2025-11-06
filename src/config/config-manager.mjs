@@ -131,10 +131,25 @@ class ConfigManager {
     try {
       if (await fs.pathExists(this.configFile)) {
         const configData = await fs.readJSON(this.configFile);
+        let needsReEncryption = false;
+
         if (configData.apiKeys) {
           Object.keys(configData.apiKeys).forEach(key => {
-            configData.apiKeys[key] = this.decrypt(configData.apiKeys[key]);
+            const encryptedValue = configData.apiKeys[key];
+            // Check if using old encryption format (only 2 parts: iv:encrypted)
+            if (encryptedValue && encryptedValue.split(":").length === 2) {
+              needsReEncryption = true;
+            }
+            configData.apiKeys[key] = this.decrypt(encryptedValue);
           });
+
+          // If old format detected, re-encrypt with new secure format
+          if (needsReEncryption) {
+            await this.saveConfig(configData);
+            console.log(
+              chalk.green("✓ Config upgraded to new secure encryption format")
+            );
+          }
         }
         return configData;
       }
@@ -231,7 +246,7 @@ class ConfigManager {
       const packagePath = path.join(__dirname, PATHS.PACKAGE);
       const packageData = fs.readJsonSync(packagePath);
       version = packageData.version || DEFAULTS.VERSION;
-    } catch (error) {
+    } catch (_error) {
       // Use fallback version if package.json can't be read
     }
 

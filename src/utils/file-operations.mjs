@@ -3,6 +3,49 @@ import path from "path";
 import chalk from "chalk";
 
 class FileOperations {
+  constructor() {
+    // Set the safe working directory (current working directory)
+    this.safeWorkingDir = process.cwd();
+  }
+
+  /**
+   * Validate that a path is within the safe working directory
+   * @param {string} filePath - Path to validate
+   * @returns {{valid: boolean, error?: string, absolutePath?: string}}
+   */
+  validatePath(filePath) {
+    try {
+      // Resolve to absolute path
+      const absolutePath = path.resolve(filePath);
+
+      // Check if the resolved path is within the safe working directory
+      if (!absolutePath.startsWith(this.safeWorkingDir)) {
+        return {
+          valid: false,
+          error: `Access denied: Path is outside the working directory. Cannot access: ${filePath}`,
+        };
+      }
+
+      // Check if it's a sensitive file
+      if (this.isSensitiveFile(absolutePath)) {
+        return {
+          valid: false,
+          error: `Access denied: Cannot access sensitive file: ${path.basename(filePath)}`,
+        };
+      }
+
+      return {
+        valid: true,
+        absolutePath,
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        error: `Invalid path: ${error.message}`,
+      };
+    }
+  }
+
   /**
    * Read a file from the filesystem
    * @param {string} filePath - Path to the file to read
@@ -10,8 +53,16 @@ class FileOperations {
    */
   async readFile(filePath) {
     try {
-      // Resolve to absolute path
-      const absolutePath = path.resolve(filePath);
+      // Validate path first
+      const validation = this.validatePath(filePath);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: validation.error,
+        };
+      }
+
+      const absolutePath = validation.absolutePath;
 
       // Check if file exists
       const exists = await fs.pathExists(absolutePath);
@@ -55,8 +106,16 @@ class FileOperations {
    */
   async writeFile(filePath, content) {
     try {
-      // Resolve to absolute path
-      const absolutePath = path.resolve(filePath);
+      // Validate path first
+      const validation = this.validatePath(filePath);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: validation.error,
+        };
+      }
+
+      const absolutePath = validation.absolutePath;
 
       // Ensure directory exists
       await fs.ensureDir(path.dirname(absolutePath));
@@ -83,18 +142,35 @@ class FileOperations {
    */
   isSensitiveFile(filePath) {
     const fileName = path.basename(filePath).toLowerCase();
+    const fullPath = filePath.toLowerCase();
+
     const sensitivePatterns = [
-      /^\.env/,
-      /credentials/,
-      /secret/,
-      /password/,
-      /private.*key/,
-      /^id_rsa/,
-      /\.pem$/,
-      /\.key$/,
+      /^\.env/, // .env files
+      /credentials/, // credential files
+      /secret/, // secret files
+      /password/, // password files
+      /private.*key/, // private key files
+      /^id_rsa/, // SSH keys
+      /\.pem$/, // PEM certificates
+      /\.key$/, // Key files
+      /\.p12$/, // Certificate files
+      /\.pfx$/, // Certificate files
+      /^\.ssh/, // SSH config directory
+      /\.npmrc$/, // NPM config (may contain tokens)
+      /\.pypirc$/, // PyPI config
+      /^\.aws/, // AWS credentials
+      /^\.config/, // Config directories
+      /token/, // Token files
+      /auth/, // Auth files
     ];
 
-    return sensitivePatterns.some(pattern => pattern.test(fileName));
+    // Also check if path contains sensitive directories
+    const sensitiveDirs = [".ssh", ".aws", ".config/sage-cli"];
+
+    return (
+      sensitivePatterns.some(pattern => pattern.test(fileName)) ||
+      sensitiveDirs.some(dir => fullPath.includes(dir))
+    );
   }
 
   /**

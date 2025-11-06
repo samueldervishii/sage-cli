@@ -4,12 +4,14 @@ import ora from "ora";
 import SearchService from "../utils/search-service.mjs";
 import ConfigManager from "../config/config-manager.mjs";
 import FileOperations from "../utils/file-operations.mjs";
+import ConversationHistory from "../utils/conversation-history.mjs";
 import { confirmAction } from "../utils/prompt-utils.mjs";
 
 class SimpleChat {
   constructor() {
     this.configManager = new ConfigManager();
     this.fileOps = new FileOperations();
+    this.history = new ConversationHistory();
   }
 
   async initialize() {
@@ -92,20 +94,9 @@ class SimpleChat {
       },
     ];
 
-    this.model = this.genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-      tools: tools,
-    });
-    this.conversationHistory = [];
-    this.searchService = new SearchService();
-
-    this.setupSystemPrompt();
-  }
-
-  setupSystemPrompt() {
+    // Build system instruction
     const currentDir = process.cwd();
-
-    const systemPrompt = `You are Sage, an intelligent AI assistant. You are helpful, creative, and conversational.
+    const systemInstruction = `You are Sage, an intelligent AI assistant. You are helpful, creative, and conversational.
 
 Key traits:
 - Be friendly and personable
@@ -147,10 +138,20 @@ Search Strategy:
 - Common patterns: "*.js", "*.mjs", "*.json", "src/**/*.js", etc.
 - After finding the file, immediately read it without asking the user for the path`;
 
-    this.conversationHistory.push({
-      role: "user",
-      parts: [{ text: systemPrompt }],
+    this.model = this.genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-exp",
+      tools: tools,
+      systemInstruction: {
+        parts: [{ text: systemInstruction }],
+        role: "system",
+      },
     });
+    this.conversationHistory = [];
+    this.searchService = new SearchService();
+
+    // Initialize conversation history
+    await this.history.init();
+    await this.history.startNewConversation();
   }
 
   formatMarkdownForTerminal(text) {
@@ -344,6 +345,9 @@ Search Strategy:
         timestamp: new Date().toISOString(),
       });
 
+      // Save user message to history
+      await this.history.addMessage("user", userInput);
+
       let finalInput = userInput;
       let searchResults = null;
 
@@ -494,14 +498,15 @@ Search Strategy:
           discardStdin: false,
         }).start();
 
-        result = await chat.sendMessage([
-          {
-            functionResponse: {
-              name: functionResponses[0].name,
-              response: functionResponses[0].response,
-            },
+        // Send all function responses back to the model
+        const functionResponseMessages = functionResponses.map(fr => ({
+          functionResponse: {
+            name: fr.name,
+            response: fr.response,
           },
-        ]);
+        }));
+
+        result = await chat.sendMessage(functionResponseMessages);
 
         response = result.response;
         spinner.stop();
@@ -509,11 +514,23 @@ Search Strategy:
 
       const reply = response.text();
 
+      // Track function calls if any
+      const functionCallNames = functionCalls
+        ? functionCalls.map(fc => fc.name)
+        : [];
+
       this.conversationHistory.push({
         role: "model",
         parts: [{ text: reply }],
         timestamp: new Date().toISOString(),
         searchUsed: !!searchResults,
+      });
+
+      // Save model response to history with metadata
+      await this.history.addMessage("model", reply, {
+        searchUsed: !!searchResults,
+        functionCalls:
+          functionCallNames.length > 0 ? functionCallNames : undefined,
       });
 
       const formattedReply = this.formatMarkdownForTerminal(reply);
@@ -532,6 +549,9 @@ Search Strategy:
       // Show full error in debug mode
       if (process.env.DEBUG) {
         console.log(chalk.gray(`Debug: ${error.message}`));
+        if (error.stack) {
+          console.log(chalk.gray(`Stack: ${error.stack}`));
+        }
       }
 
       throw error;

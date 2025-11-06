@@ -43,10 +43,12 @@ export async function displayBanner() {
   // Helper to pad text
   const pad = (text, width, align = "left") => {
     // Strip ANSI codes to get actual length
-
+    // eslint-disable-next-line no-control-regex -- ANSI escape codes are intentional
     const stripped = text
       .replace(/\u001b\[[0-9;]*m/g, "")
+      // eslint-disable-next-line no-control-regex -- ANSI escape codes are intentional
       .replace(/\u001b]8;;[^\u0007]*\u0007/g, "")
+      // eslint-disable-next-line no-control-regex -- ANSI escape codes are intentional
       .replace(/\u001b]8;;\u0007/g, "");
     const padding = width - stripped.length;
     if (align === "center") {
@@ -79,6 +81,18 @@ export async function displayBanner() {
     { text: chalk.bold("Tips for getting started"), align: "center" },
     { text: "", align: "left" },
     { text: chalk.gray("  -> Type .exit to quit"), align: "left" },
+    {
+      text: chalk.gray("  -> sage history - View past conversations"),
+      align: "left",
+    },
+    {
+      text: chalk.gray("  -> Ask me to read, write, or search files"),
+      align: "left",
+    },
+    {
+      text: chalk.gray("  -> I can search the web for current info"),
+      align: "left",
+    },
   ];
 
   // Build the box

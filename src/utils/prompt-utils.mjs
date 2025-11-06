@@ -60,7 +60,7 @@ export async function confirmAction(message, operation, target) {
       console.log();
       return { confirmed: false, cancelled: false };
     }
-  } catch (error) {
+  } catch (_error) {
     // Handle Ctrl+C or other interruptions
     console.log(chalk.red("\nInterrupted by user"));
     console.log();
@@ -103,7 +103,7 @@ export async function promptFilePath(message, defaultPath = "") {
     ]);
 
     return answer.filePath.trim();
-  } catch (error) {
+  } catch (_error) {
     // Handle Ctrl+C
     console.log(chalk.red("\nCancelled by user"));
     return null;
@@ -139,7 +139,7 @@ export async function showMenu(message, choices) {
     ]);
 
     return answer.selection;
-  } catch (error) {
+  } catch (_error) {
     // Handle Ctrl+C
     console.log(chalk.red("\nCancelled by user"));
     return null;
