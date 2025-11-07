@@ -208,17 +208,17 @@ class ConversationHistory {
       const time = new Date(message.timestamp).toLocaleTimeString();
 
       if (message.role === "user") {
-        markdown += `## 👤 User (${time})\n\n`;
+        markdown += `## User (${time})\n\n`;
         markdown += `${message.content}\n\n`;
       } else if (message.role === "model") {
-        markdown += `## 🤖 Sage (${time})\n\n`;
+        markdown += `## Sage (${time})\n\n`;
         markdown += `${message.content}\n\n`;
 
         if (message.searchUsed) {
-          markdown += `*🔍 Web search was used for this response*\n\n`;
+          markdown += `*Web search was used for this response*\n\n`;
         }
         if (message.functionCalls) {
-          markdown += `*🛠️ Functions called: ${message.functionCalls.join(", ")}*\n\n`;
+          markdown += `*Functions called: ${message.functionCalls.join(", ")}*\n\n`;
         }
       }
 

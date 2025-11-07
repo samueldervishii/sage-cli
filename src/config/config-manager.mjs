@@ -147,7 +147,7 @@ class ConfigManager {
           if (needsReEncryption) {
             await this.saveConfig(configData);
             console.log(
-              chalk.green("✓ Config upgraded to new secure encryption format")
+              chalk.green("Config upgraded to new secure encryption format")
             );
           }
         }
@@ -223,6 +223,15 @@ class ConfigManager {
       if (envVars.SERPER_API_KEY) {
         config.apiKeys.serper = envVars.SERPER_API_KEY;
       }
+      if (envVars.OPENROUTER_API_KEY) {
+        config.apiKeys.openrouter = envVars.OPENROUTER_API_KEY;
+      }
+      if (envVars.GEMINI_MODEL) {
+        config.preferences.geminiModel = envVars.GEMINI_MODEL;
+      }
+      if (envVars.OPENROUTER_MODEL) {
+        config.preferences.openrouterModel = envVars.OPENROUTER_MODEL;
+      }
 
       const saved = await this.saveConfig(config);
       if (saved) {
@@ -256,9 +265,12 @@ class ConfigManager {
         gemini: null,
         openai: null,
         serper: null,
+        openrouter: null,
       },
       preferences: {
         defaultModel: "gemini",
+        geminiModel: DEFAULTS.GEMINI_MODEL,
+        openrouterModel: "deepseek/deepseek-r1-distill-llama-70b:free",
         outputFormat: "detailed",
         autoUpdate: true,
       },
@@ -269,6 +281,22 @@ class ConfigManager {
   async getApiKey(provider) {
     const config = await this.loadConfig();
     return config.apiKeys?.[provider] || null;
+  }
+
+  async getGeminiModel() {
+    // Check environment variable first (highest priority)
+    if (process.env.GEMINI_MODEL) {
+      return process.env.GEMINI_MODEL;
+    }
+
+    // Then check config
+    const config = await this.loadConfig();
+    if (config.preferences?.geminiModel) {
+      return config.preferences.geminiModel;
+    }
+
+    // Fall back to default
+    return DEFAULTS.GEMINI_MODEL;
   }
 
   async setApiKey(provider, key) {

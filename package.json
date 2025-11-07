@@ -6,7 +6,7 @@
   "bin": "./bin/sage.mjs",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node tests/config-manager.test.mjs && node tests/file-operations.test.mjs && node tests/conversation-history.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",

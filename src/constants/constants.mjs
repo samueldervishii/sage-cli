@@ -19,6 +19,7 @@ export const TIMEOUTS = {
 
 export const DEFAULTS = {
   VERSION: "0.0.1-beta",
+  GEMINI_MODEL: "gemini-2.0-flash-exp",
 };
 
 export const RETRY_LIMITS = {

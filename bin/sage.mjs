@@ -55,6 +55,9 @@ try {
     if (config.apiKeys.serper) {
       process.env.SERPER_API_KEY = config.apiKeys.serper;
     }
+    if (config.apiKeys.openrouter) {
+      process.env.OPENROUTER_API_KEY = config.apiKeys.openrouter;
+    }
   }
 } catch (error) {
   // Silently fail if config doesn't exist yet

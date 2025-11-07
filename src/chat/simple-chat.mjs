@@ -5,6 +5,8 @@ import SearchService from "../utils/search-service.mjs";
 import ConfigManager from "../config/config-manager.mjs";
 import FileOperations from "../utils/file-operations.mjs";
 import ConversationHistory from "../utils/conversation-history.mjs";
+import MemoryManager from "../utils/memory-manager.mjs";
+import OpenRouterClient from "../utils/openrouter-client.mjs";
 import { confirmAction } from "../utils/prompt-utils.mjs";
 
 class SimpleChat {
@@ -12,9 +14,11 @@ class SimpleChat {
     this.configManager = new ConfigManager();
     this.fileOps = new FileOperations();
     this.history = new ConversationHistory();
+    this.memory = new MemoryManager();
+    this.openrouterClient = null;
   }
 
-  async initialize() {
+  async initialize(conversationId = null) {
     const apiKey = await this.configManager.getApiKey("gemini");
     if (!apiKey) {
       throw new Error(
@@ -90,6 +94,42 @@ class SimpleChat {
               required: ["file_path", "content", "reason"],
             },
           },
+          {
+            name: "remember_info",
+            description:
+              "Store information about the user for future conversations. Use this when the user explicitly asks you to remember something, or mentions preferences, facts about themselves, or context that would be useful to recall later.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                content: {
+                  type: "STRING",
+                  description:
+                    "The information to remember (be specific and clear)",
+                },
+                category: {
+                  type: "STRING",
+                  description:
+                    "Category of the memory: preference, fact, context, project, or general",
+                },
+              },
+              required: ["content", "category"],
+            },
+          },
+          {
+            name: "recall_info",
+            description:
+              "Search through stored memories about the user. Use this when you need to recall previous information about the user's preferences, facts, or context to provide a personalized response.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                query: {
+                  type: "STRING",
+                  description: "Search query to find relevant memories",
+                },
+              },
+              required: ["query"],
+            },
+          },
         ],
       },
     ];
@@ -110,10 +150,20 @@ You can help with:
 - Answering questions with real-time web search when needed
 - Reading and analyzing files from the filesystem
 - Creating and modifying files
+- Remembering information about the user for personalized responses
 - Problem solving
 - Creative tasks
 - Technical discussions
 - General conversation
+
+Memory System:
+- You have the ability to remember information about the user across conversations
+- When a user asks you to remember something or mentions preferences/facts about themselves, use the remember_info function
+- IMPORTANT: ALWAYS use recall_info FIRST before answering questions that could benefit from personalization
+- Before asking the user for preferences, ALWAYS check recall_info to see if you already know them
+- Common queries to check memory for: recommendations (food, movies, books), preferences, personal facts, project context
+- Examples of things to remember: preferences (likes blueberries), facts (works as a developer), context (working on project X), etc.
+- Be proactive about using memory - check it often! Don't ask for information you might already have stored
 
 When provided with search results, incorporate them naturally into your responses and cite sources when relevant.
 When asked to generate code, provide clean, working examples with explanations.
@@ -138,8 +188,11 @@ Search Strategy:
 - Common patterns: "*.js", "*.mjs", "*.json", "src/**/*.js", etc.
 - After finding the file, immediately read it without asking the user for the path`;
 
+    // Get model from config (allows user to customize via .env or config)
+    const modelName = await this.configManager.getGeminiModel();
+
     this.model = this.genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
+      model: modelName,
       tools: tools,
       systemInstruction: {
         parts: [{ text: systemInstruction }],
@@ -151,7 +204,83 @@ Search Strategy:
 
     // Initialize conversation history
     await this.history.init();
-    await this.history.startNewConversation();
+
+    // Initialize memory system
+    await this.memory.init();
+
+    // Initialize OpenRouter client if API key is available (for fallback)
+    const openrouterKey = await this.configManager.getApiKey("openrouter");
+    if (openrouterKey) {
+      const config = await this.configManager.loadConfig();
+      const openrouterModel =
+        config.preferences?.openrouterModel ||
+        "deepseek/deepseek-r1-distill-llama-70b:free";
+      this.openrouterClient = new OpenRouterClient(
+        openrouterKey,
+        openrouterModel
+      );
+    }
+
+    // If resuming, load existing conversation; otherwise start new
+    if (conversationId) {
+      try {
+        const existingConversation =
+          await this.history.loadConversation(conversationId);
+        this.history.currentConversationId = conversationId;
+        this.history.currentConversation = existingConversation;
+
+        // Display resuming header
+        console.log(chalk.cyan(`Resuming conversation: ${conversationId}`));
+        console.log(
+          chalk.gray(
+            `Started: ${new Date(existingConversation.startedAt).toLocaleString()}`
+          )
+        );
+        console.log(
+          chalk.gray(`Messages: ${existingConversation.messages.length}\n`)
+        );
+
+        // Display previous messages
+        if (existingConversation.messages.length > 0) {
+          console.log(chalk.bold.white("Previous conversation:"));
+          console.log(chalk.gray("─".repeat(60)));
+
+          for (const msg of existingConversation.messages) {
+            const time = new Date(msg.timestamp).toLocaleTimeString();
+
+            if (msg.role === "user") {
+              console.log(chalk.bold.blue(`\n> You (${time}):`));
+              console.log(chalk.white(msg.content));
+            } else if (msg.role === "model") {
+              console.log(chalk.bold.green(`\n> Sage (${time}):`));
+              console.log(chalk.white(msg.content));
+            }
+
+            // Load messages into conversation history for Gemini
+            this.conversationHistory.push({
+              role: msg.role,
+              parts: [{ text: msg.content }],
+              timestamp: msg.timestamp,
+            });
+          }
+
+          console.log("\n" + chalk.gray("─".repeat(60)));
+          console.log(
+            chalk.green("You can continue the conversation below:\n")
+          );
+        }
+      } catch (error) {
+        console.log(
+          chalk.yellow(
+            `Warning: Could not load conversation ${conversationId}, starting new one`
+          )
+        );
+        console.log(chalk.gray(`Error: ${error.message}\n`));
+        await this.history.startNewConversation();
+      }
+    } else {
+      await this.history.startNewConversation();
+    }
   }
 
   formatMarkdownForTerminal(text) {
@@ -336,6 +465,65 @@ Search Strategy:
     return result;
   }
 
+  /**
+   * Handle remember info operation
+   */
+  async handleRememberInfo(content, category) {
+    if (process.env.DEBUG) {
+      console.log(chalk.blue("\nMemory Store Request"));
+      console.log(chalk.gray(`Content: ${content}`));
+      console.log(chalk.gray(`Category: ${category}`));
+    }
+
+    const result = await this.memory.remember(content, category);
+
+    if (process.env.DEBUG) {
+      if (result.success) {
+        console.log(chalk.green("Memory stored successfully"));
+        console.log();
+      } else {
+        console.log(chalk.red(`${result.message}`));
+      }
+    }
+
+    return {
+      success: result.success,
+      message: result.message,
+    };
+  }
+
+  /**
+   * Handle recall info operation
+   */
+  async handleRecallInfo(query) {
+    if (process.env.DEBUG) {
+      console.log(chalk.blue("\nMemory Recall Request"));
+      console.log(chalk.gray(`Query: ${query}`));
+    }
+
+    const memories = await this.memory.searchMemories(query);
+
+    if (process.env.DEBUG) {
+      if (memories.length > 0) {
+        console.log(chalk.green(`Found ${memories.length} relevant memories`));
+        console.log();
+      } else {
+        console.log(chalk.yellow("No relevant memories found"));
+        console.log();
+      }
+    }
+
+    return {
+      success: true,
+      memoriesFound: memories.length,
+      memories: memories.map(m => ({
+        content: m.content,
+        category: m.category,
+        timestamp: m.timestamp,
+      })),
+    };
+  }
+
   async sendSingleMessage(userInput) {
     let spinner = null;
     try {
@@ -413,11 +601,37 @@ Search Strategy:
         const functionResponses = [];
 
         for (const call of functionCalls) {
-          console.log(chalk.blue(`\nFunction called: ${call.name}`));
+          if (process.env.DEBUG) {
+            console.log(chalk.blue(`\nFunction called: ${call.name}`));
+          }
+
+          // Validate function call structure
+          if (!call.name || !call.args || typeof call.args !== "object") {
+            if (process.env.DEBUG) {
+              console.log(
+                chalk.yellow("Warning: Malformed function call, skipping")
+              );
+            }
+            continue;
+          }
 
           let functionResult;
 
-          if (call.name === "search_files") {
+          if (call.name === "remember_info") {
+            const { content, category } = call.args;
+            const result = await this.handleRememberInfo(content, category);
+            functionResult = {
+              name: call.name,
+              response: result,
+            };
+          } else if (call.name === "recall_info") {
+            const { query } = call.args;
+            const result = await this.handleRecallInfo(query);
+            functionResult = {
+              name: call.name,
+              response: result,
+            };
+          } else if (call.name === "search_files") {
             const { pattern } = call.args;
             console.log(chalk.gray(`Searching for: ${pattern}`));
 
@@ -540,6 +754,100 @@ Search Strategy:
     } catch (error) {
       if (spinner && spinner.isSpinning) {
         spinner.stop();
+      }
+
+      // Check if this is a rate limit error and we have OpenRouter fallback
+      const errorMsg = error.message || String(error);
+      const isRateLimit =
+        errorMsg.includes("429") ||
+        errorMsg.includes("Too Many Requests") ||
+        errorMsg.includes("Resource exhausted");
+
+      if (isRateLimit && this.openrouterClient) {
+        // Silent fallback - only show in debug mode
+        if (process.env.DEBUG) {
+          console.log(
+            chalk.gray(
+              "Debug: Gemini rate limit hit. Falling back to OpenRouter..."
+            )
+          );
+        }
+
+        // Try with OpenRouter
+        try {
+          const openrouterMessages = this.openrouterClient.convertGeminiHistory(
+            this.conversationHistory
+          );
+
+          // Load user memories to include in context (since OpenRouter doesn't support function calling)
+          const contextMemories = this.memory.getContextMemories(10);
+          const memoryContext = this.memory.formatForContext(contextMemories);
+
+          // Add system message with context including memories
+          const systemMessage = {
+            role: "system",
+            content: `You are Sage, an intelligent AI assistant. Current directory: ${process.cwd()}. Be helpful, creative, and conversational.
+
+${memoryContext}`,
+          };
+          openrouterMessages.unshift(systemMessage);
+
+          // Use same spinner style as Gemini for consistency
+          const spinner2 = ora("Sage is thinking...").start();
+          let response;
+          try {
+            response =
+              await this.openrouterClient.chatCompletion(openrouterMessages);
+          } finally {
+            spinner2.stop();
+          }
+
+          if (response && response.success) {
+            const reply = response.content;
+
+            // Add to conversation history
+            this.conversationHistory.push({
+              role: "model",
+              parts: [{ text: reply }],
+              timestamp: new Date().toISOString(),
+            });
+
+            // Save to history
+            await this.history.addMessage("model", reply, {
+              fallback: true,
+              model: response.model,
+            });
+
+            const formattedReply = this.formatMarkdownForTerminal(reply);
+
+            // Show model info only in debug mode
+            if (process.env.DEBUG) {
+              console.log(
+                chalk.green("•"),
+                chalk.gray(`[${response.model}]`),
+                formattedReply
+              );
+            } else {
+              console.log(chalk.green("•"), formattedReply);
+            }
+
+            return reply;
+          } else {
+            if (process.env.DEBUG) {
+              console.log(
+                chalk.gray("Debug: OpenRouter fallback failed:"),
+                response.error
+              );
+            }
+          }
+        } catch (fallbackError) {
+          if (process.env.DEBUG) {
+            console.log(
+              chalk.gray("Debug: OpenRouter fallback error:"),
+              fallbackError.message
+            );
+          }
+        }
       }
 
       // Parse error and show user-friendly message

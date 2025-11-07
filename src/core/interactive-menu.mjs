@@ -7,8 +7,13 @@ import SimpleChat from "../chat/simple-chat.mjs";
 
 let globalChatInstance = null;
 
-export async function startInteractiveMode() {
-  await displayBanner();
+export async function startInteractiveMode(conversationId = null) {
+  // Get model name for banner
+  const ConfigManager = (await import("../config/config-manager.mjs")).default;
+  const configManager = new ConfigManager();
+  const modelName = await configManager.getGeminiModel();
+
+  await displayBanner(modelName);
   console.log();
 
   const setupWizard = new SetupWizard();
@@ -38,7 +43,7 @@ export async function startInteractiveMode() {
 
   try {
     globalChatInstance = new SimpleChat();
-    await globalChatInstance.initialize();
+    await globalChatInstance.initialize(conversationId);
   } catch {
     console.log(
       chalk.yellow(

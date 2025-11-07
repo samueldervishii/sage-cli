@@ -13,7 +13,7 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export async function displayBanner() {
+export async function displayBanner(modelName = null) {
   // Get version
   const packagePath = path.join(__dirname, PATHS.PACKAGE);
   let version = "1.0.0";
@@ -23,6 +23,17 @@ export async function displayBanner() {
   } catch {
     // Use default version
   }
+
+  // Format model name for display
+  const modelDisplay = modelName
+    ? modelName
+        .replace("gemini-", "Gemini ")
+        .replace("-exp", " Exp")
+        .replace("-", " ")
+        .split(" ")
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
+    : "Gemini 2.0 Flash Exp";
 
   // Get current directory and username
   const currentDir = process.cwd();
@@ -72,7 +83,7 @@ export async function displayBanner() {
     "",
     asciiHorizontal,
     "",
-    chalk.cyan("Gemini 2.0 Flash Exp"),
+    chalk.cyan(modelDisplay),
     chalk.gray(currentDir),
   ];
 
@@ -82,11 +93,15 @@ export async function displayBanner() {
     { text: "", align: "left" },
     { text: chalk.gray("  -> Type .exit to quit"), align: "left" },
     {
-      text: chalk.gray("  -> sage history - View past conversations"),
+      text: chalk.gray("  -> sage --resume - Continue previous chat"),
       align: "left",
     },
     {
-      text: chalk.gray("  -> Ask me to read, write, or search files"),
+      text: chalk.gray("  -> sage memory - Manage memories about you"),
+      align: "left",
+    },
+    {
+      text: chalk.gray("  -> Ask me to remember things you tell me"),
       align: "left",
     },
     {
