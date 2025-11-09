@@ -11,7 +11,9 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "start": "node ./bin/sage.mjs"
+    "start": "node ./bin/sage.mjs",
+    "api": "node ./bin/sage-api.mjs",
+    "api:dev": "cross-env DEBUG=1 node ./bin/sage-api.mjs"
   },
   "keywords": [],
   "author": "",
@@ -25,15 +27,20 @@
     "@modelcontextprotocol/sdk": "^1.21.0",
     "axios": "^1.6.7",
     "chalk": "^5.3.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
     "fs-extra": "^11.2.0",
     "glob": "^10.3.10",
     "gradient-string": "^2.0.2",
     "inquirer": "^9.2.15",
-    "ora": "^8.0.1"
+    "ora": "^8.0.1",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "cross-env": "^7.0.3",
     "eslint": "^9.39.1",
     "prettier": "^3.2.5"
   }
