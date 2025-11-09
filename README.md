@@ -1,10 +1,11 @@
 # Sage CLI
 
-An intelligent command-line AI assistant powered by Google Gemini with memory, file operations, and automatic fallback support.
+An intelligent command-line AI assistant powered by Google Gemini with memory, file operations, automatic fallback support, and **REST API**.
 
 ## Features
 
 - **Interactive Chat** - REPL-style interface with conversation context
+- **REST API** - Use Sage as an API server for your applications
 - **Memory System** - Sage remembers your preferences across conversations
 - **File Operations** - Read, write, and search files with AI assistance
 - **Web Search** - Real-time web search integration via Serper API
@@ -16,6 +17,8 @@ An intelligent command-line AI assistant powered by Google Gemini with memory, f
 
 ## Quick Start
 
+### CLI Mode
+
 ```bash
 # Install
 npm install -g sage-cli
@@ -25,6 +28,22 @@ sage setup
 
 # Start chatting
 sage
+```
+
+### API Mode
+
+```bash
+# Install
+npm install -g sage-cli
+
+# First time setup
+sage setup
+
+# Start API server (default port 3000)
+npm run api
+
+# Or specify custom port
+npm run api -- --port=8080
 ```
 
 ## Usage
@@ -158,6 +177,250 @@ sage history export 2025-11-07-123456
 ```
 
 Auto-cleanup: Keeps last 50 conversations or 30 days, whichever is more recent.
+
+## API Server
+
+Sage can be run as a REST API server for integration with web apps, mobile apps, or other services.
+
+### Starting the Server
+
+```bash
+# Production mode
+npm run api
+
+# Development mode (with debug logs)
+npm run api:dev
+
+# Custom port
+npm run api -- --port=8080
+```
+
+### API Endpoints
+
+#### Health Check
+
+```bash
+GET /health
+```
+
+Response:
+
+```json
+{
+  "status": "healthy",
+  "version": "1.5.0",
+  "timestamp": "2025-11-08T19:54:40.907Z"
+}
+```
+
+#### Chat Endpoints
+
+**Initialize Chat Session**
+
+```bash
+POST /api/chat/initialize
+Content-Type: application/json
+
+{
+  "conversationId": "optional-conversation-id"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "sessionId": "uuid-session-id",
+  "resumed": false,
+  "conversationId": "2025-11-08-123456"
+}
+```
+
+**Send Message**
+
+```bash
+POST /api/chat/send
+Content-Type: application/json
+X-Session-ID: your-session-id
+
+{
+  "message": "Hello, what can you help me with?"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "reply": "Hello! I can help you with...",
+  "searchUsed": false,
+  "functionCalls": [],
+  "fallback": false
+}
+```
+
+**Get Chat Status**
+
+```bash
+GET /api/chat/status
+X-Session-ID: your-session-id
+```
+
+**Clear Session**
+
+```bash
+DELETE /api/chat/session
+X-Session-ID: your-session-id
+```
+
+#### Memory Endpoints
+
+**List Memories**
+
+```bash
+GET /api/memory/list?limit=50
+```
+
+**Search Memories**
+
+```bash
+GET /api/memory/search?query=preferences
+```
+
+**Add Memory**
+
+```bash
+POST /api/memory/add
+Content-Type: application/json
+
+{
+  "content": "User prefers React over Vue",
+  "category": "preference"
+}
+```
+
+**Get Statistics**
+
+```bash
+GET /api/memory/stats
+```
+
+**Clear All Memories**
+
+```bash
+DELETE /api/memory/clear
+```
+
+#### History Endpoints
+
+**List Conversations**
+
+```bash
+GET /api/history/list?limit=50
+```
+
+**Get Conversation**
+
+```bash
+GET /api/history/:id
+```
+
+**Export Conversation**
+
+```bash
+GET /api/history/:id/export
+```
+
+**Get Storage Info**
+
+```bash
+GET /api/history/info/storage
+```
+
+**Delete All History**
+
+```bash
+DELETE /api/history/clean
+```
+
+### Session Management
+
+The API uses session-based state management:
+
+- Sessions are created automatically on first request
+- Include `X-Session-ID` header in subsequent requests
+- Sessions expire after 30 minutes of inactivity
+- Each session maintains its own chat context
+
+### Example: Using the API with cURL
+
+```bash
+# 1. Initialize a chat session
+curl -X POST http://localhost:3000/api/chat/initialize \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Response includes X-Session-ID header
+
+# 2. Send a message (use session ID from step 1)
+curl -X POST http://localhost:3000/api/chat/send \
+  -H "Content-Type: application/json" \
+  -H "X-Session-ID: your-session-id" \
+  -d '{"message": "What is Node.js?"}'
+
+# 3. Check memory stats
+curl http://localhost:3000/api/memory/stats
+```
+
+### Example: Using the API with JavaScript
+
+```javascript
+// Initialize chat
+const initResponse = await fetch("http://localhost:3000/api/chat/initialize", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({}),
+});
+
+const sessionId = initResponse.headers.get("X-Session-ID");
+
+// Send message
+const chatResponse = await fetch("http://localhost:3000/api/chat/send", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-Session-ID": sessionId,
+  },
+  body: JSON.stringify({
+    message: "Explain TypeScript in simple terms",
+  }),
+});
+
+const data = await chatResponse.json();
+console.log(data.reply);
+```
+
+### API Configuration
+
+```bash
+# Environment variables
+PORT=3000                    # API server port
+CORS_ORIGIN=*                # CORS origin (default: *)
+DEBUG=1                      # Enable debug logging
+
+# Note: Scripts use cross-env for Windows compatibility
+# npm run api:dev works on all platforms
+```
+
+### API Features
+
+- **Rate Limiting** - 100 requests per 15 minutes per IP
+- **Session Management** - Automatic session creation and cleanup
+- **CORS Support** - Configurable cross-origin requests
+- **Error Handling** - Comprehensive error responses
+- **Same Core Logic** - Uses the same ChatService as CLI
 
 ## Automatic Fallback
 

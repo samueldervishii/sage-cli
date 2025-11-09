@@ -54,8 +54,8 @@ export async function displayBanner(modelName = null) {
   // Helper to pad text
   const pad = (text, width, align = "left") => {
     // Strip ANSI codes to get actual length
-    // eslint-disable-next-line no-control-regex -- ANSI escape codes are intentional
     const stripped = text
+      // eslint-disable-next-line no-control-regex -- ANSI escape codes are intentional
       .replace(/\u001b\[[0-9;]*m/g, "")
       // eslint-disable-next-line no-control-regex -- ANSI escape codes are intentional
       .replace(/\u001b]8;;[^\u0007]*\u0007/g, "")
