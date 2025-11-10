@@ -55,7 +55,7 @@ const server = new SageAPIServer(port);
 server
   .start()
   .then(() => {
-    console.log("✓ Server started successfully");
+    console.log("Server started successfully");
     console.log(`\nPress Ctrl+C to stop the server\n`);
   })
   .catch(error => {
@@ -67,13 +67,13 @@ server
 process.on("SIGTERM", async () => {
   console.log("\n\nShutting down gracefully...");
   await server.stop();
-  console.log("✓ Server stopped");
+  console.log("Server stopped");
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
   console.log("\n\nShutting down gracefully...");
   await server.stop();
-  console.log("✓ Server stopped");
+  console.log("Server stopped");
   process.exit(0);
 });

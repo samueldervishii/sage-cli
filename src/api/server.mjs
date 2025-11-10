@@ -117,7 +117,7 @@ class SageAPIServer {
     return new Promise((resolve, reject) => {
       try {
         this.server = this.app.listen(this.port, () => {
-          console.log(`\n✓ Sage API Server running on port ${this.port}`);
+          console.log(`\nSage API Server running on port ${this.port}`);
           console.log(`  Health check: http://localhost:${this.port}/health`);
           console.log(`  API docs: http://localhost:${this.port}/\n`);
           resolve(this.server);
