@@ -151,14 +151,17 @@ const ApiDocs = () => {
   const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
   return (
-    <div className="h-[calc(100vh-4rem)] overflow-y-auto scrollbar-thin">
+    <div
+      className="h-[calc(100vh-4rem)] overflow-y-auto scrollbar-thin"
+      style={{ backgroundColor: "#1a1d20" }}
+    >
       <div className="max-w-6xl mx-auto py-8 px-6">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-white mb-2">
             Sage API Documentation
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-400">
             REST API for Sage AI Assistant - Version{" "}
             {serverInfo?.version || "2.0.0"}
           </p>

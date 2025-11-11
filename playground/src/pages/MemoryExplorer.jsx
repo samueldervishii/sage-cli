@@ -109,66 +109,74 @@ const MemoryExplorer = () => {
   const displayedMemories = searchQuery.trim() ? searchResults : memories;
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-dark-950 dark:via-dark-950 dark:to-dark-900">
+    <div
+      className="h-[calc(100vh-4rem)] flex flex-col"
+      style={{ backgroundColor: "#1a1d20" }}
+    >
       {/* Header */}
-      <div className="bg-white dark:bg-dark-900 border-b border-gray-200 dark:border-dark-800 shadow-sm">
-        <div className="max-w-6xl mx-auto px-8 py-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                <SparklesIcon className="w-7 h-7 text-white" />
+      <div
+        className="border-b border-gray-800"
+        style={{ backgroundColor: "#1a1d20" }}
+      >
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gray-700 flex items-center justify-center flex-shrink-0">
+                <SparklesIcon className="w-5 h-5 sm:w-7 sm:h-7 text-gray-300" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">
                   Memory Explorer
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Manage AI memories and learned information
+                <p className="text-xs sm:text-sm text-gray-400">
+                  Manage AI memories
                 </p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl flex items-center gap-2 transition-all shadow-lg font-medium"
+                className="flex-1 sm:flex-none px-3 sm:px-5 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center gap-2 transition-all font-medium text-sm"
               >
-                <PlusIcon className="w-5 h-5" />
-                Add Memory
+                <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Add Memory</span>
+                <span className="sm:hidden">Add</span>
               </button>
               <button
                 onClick={handleClearAll}
-                className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-xl flex items-center gap-2 transition-all shadow-lg font-medium"
+                className="flex-1 sm:flex-none px-3 sm:px-5 py-2 sm:py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl flex items-center justify-center gap-2 transition-all font-medium text-sm"
               >
-                <TrashIcon className="w-5 h-5" />
-                Clear All
+                <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Clear All</span>
+                <span className="sm:hidden">Clear</span>
               </button>
             </div>
           </div>
 
           {/* Stats */}
           {stats && (
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl p-5 border border-blue-200 dark:border-blue-800 shadow-sm">
-                <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+              <div className="bg-gray-800 rounded-xl p-4 sm:p-5 border border-gray-700">
+                <div className="text-xs sm:text-sm font-semibold text-gray-400 mb-1">
                   Total Memories
                 </div>
-                <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
                   {stats.totalMemories || 0}
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl p-5 border border-purple-200 dark:border-purple-800 shadow-sm">
-                <div className="text-sm font-semibold text-purple-600 dark:text-purple-400 mb-1">
+              <div className="bg-gray-800 rounded-xl p-4 sm:p-5 border border-gray-700">
+                <div className="text-xs sm:text-sm font-semibold text-gray-400 mb-1">
                   Categories
                 </div>
-                <div className="text-3xl font-bold text-purple-700 dark:text-purple-300">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
                   {stats.categories ? Object.keys(stats.categories).length : 0}
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20 rounded-2xl p-5 border border-pink-200 dark:border-pink-800 shadow-sm">
-                <div className="text-sm font-semibold text-pink-600 dark:text-pink-400 mb-1">
+              <div className="bg-gray-800 rounded-xl p-4 sm:p-5 border border-gray-700">
+                <div className="text-xs sm:text-sm font-semibold text-gray-400 mb-1">
                   Most Accessed
                 </div>
-                <div className="text-lg font-bold text-pink-700 dark:text-pink-300 line-clamp-2">
+                <div className="text-base sm:text-lg font-bold text-white line-clamp-2">
                   {stats.mostAccessed?.content || "N/A"}
                 </div>
               </div>
@@ -176,21 +184,21 @@ const MemoryExplorer = () => {
           )}
 
           {/* Search */}
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <div className="flex-1 relative">
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleSearch()}
                 placeholder="Search memories..."
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-dark-800 border-2 border-gray-200 dark:border-dark-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 text-sm sm:text-base bg-gray-900 border-2 border-gray-800 rounded-xl text-gray-100 placeholder-gray-400 focus:border-blue-500 transition-all"
               />
             </div>
             <button
               onClick={handleSearch}
-              className="px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-800 hover:to-gray-700 text-white rounded-xl transition-all shadow-lg font-medium"
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-all font-medium text-sm sm:text-base"
             >
               Search
             </button>
@@ -202,20 +210,18 @@ const MemoryExplorer = () => {
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-gray-500 dark:text-gray-400 text-lg">
-              Loading...
-            </div>
+            <div className="text-gray-400 text-base sm:text-lg">Loading...</div>
           </div>
         ) : displayedMemories.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center max-w-md px-6">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 flex items-center justify-center">
-                <SparklesIcon className="w-12 h-12 text-purple-500 dark:text-purple-400" />
+          <div className="flex items-center justify-center h-full px-4">
+            <div className="text-center max-w-md">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 rounded-2xl bg-gray-800 flex items-center justify-center">
+                <SparklesIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
                 {searchQuery ? "No results found" : "No memories yet"}
               </h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm sm:text-base text-gray-400">
                 {searchQuery
                   ? "Try a different search query"
                   : "Start adding memories to help Sage remember important information"}
@@ -223,30 +229,30 @@ const MemoryExplorer = () => {
             </div>
           </div>
         ) : (
-          <div className="max-w-6xl mx-auto py-8 px-8 space-y-4">
+          <div className="max-w-6xl mx-auto py-4 sm:py-8 px-4 sm:px-6 lg:px-8 space-y-3 sm:space-y-4">
             {displayedMemories.map((memory, index) => (
               <div
                 key={memory.id || index}
-                className="bg-white dark:bg-dark-800 border-2 border-gray-200 dark:border-dark-700 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all"
+                className="bg-gray-800 border-2 border-gray-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:border-gray-600 transition-all"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <p className="text-gray-900 dark:text-gray-100 leading-relaxed text-lg">
+                    <p className="text-gray-100 leading-relaxed text-sm sm:text-lg">
                       {memory.content || memory.text || memory}
                     </p>
-                    <div className="flex items-center gap-4 mt-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 sm:mt-3">
                       {memory.category && (
-                        <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold rounded-full">
+                        <span className="px-2 sm:px-3 py-1 bg-gray-700 text-gray-300 text-xs font-semibold rounded-full">
                           {memory.category}
                         </span>
                       )}
                       {memory.timestamp && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-gray-400">
                           {formatDate(memory.timestamp)}
                         </span>
                       )}
                       {memory.accessCount !== undefined && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-gray-400">
                           Accessed {memory.accessCount} times
                         </span>
                       )}
@@ -262,8 +268,8 @@ const MemoryExplorer = () => {
       {/* Add memory modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-dark-900 rounded-2xl p-8 max-w-lg w-full shadow-2xl border border-gray-200 dark:border-dark-700">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+          <div className="bg-gray-800 rounded-2xl p-6 sm:p-8 max-w-lg w-full border border-gray-700">
+            <h3 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">
               Add New Memory
             </h3>
             <textarea
@@ -272,7 +278,7 @@ const MemoryExplorer = () => {
               placeholder="Enter something for Sage to remember..."
               rows={4}
               autoFocus
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-dark-800 border-2 border-gray-200 dark:border-dark-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-6 resize-none"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-gray-900 border-2 border-gray-700 rounded-xl text-gray-100 placeholder-gray-400 focus:border-blue-500 mb-4 sm:mb-6 resize-none"
             />
             <div className="flex justify-end gap-3">
               <button
@@ -280,14 +286,14 @@ const MemoryExplorer = () => {
                   setShowAddModal(false);
                   setNewMemory("");
                 }}
-                className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-dark-800 dark:hover:bg-dark-700 text-gray-900 dark:text-gray-100 rounded-xl transition-all font-medium"
+                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-100 rounded-xl transition-all font-medium text-sm sm:text-base"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddMemory}
                 disabled={!newMemory.trim()}
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 disabled:from-gray-300 disabled:to-gray-300 dark:disabled:from-dark-700 dark:disabled:to-dark-700 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-lg disabled:shadow-none font-medium"
+                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl transition-all font-medium text-sm sm:text-base"
               >
                 Add Memory
               </button>

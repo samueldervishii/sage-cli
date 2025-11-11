@@ -16,9 +16,8 @@ let sessionId = null;
 api.interceptors.request.use(config => {
   if (sessionId) {
     config.headers["X-Session-ID"] = sessionId;
-    console.log("📤 Sending request with session ID:", sessionId);
   } else {
-    console.warn("⚠️ No session ID available for request");
+    console.error("No session ID available for request");
   }
   return config;
 });
@@ -40,7 +39,6 @@ api.interceptors.response.use(response => {
 
   if (newSessionId) {
     sessionId = newSessionId;
-    console.log("✅ Session ID captured from headers:", newSessionId);
   }
   return response;
 });
@@ -52,23 +50,16 @@ export const chatAPI = {
       "/api/chat/initialize",
       conversationId ? { conversationId } : {}
     );
-
-    console.log("📋 Initialize response headers:", response.headers);
-    console.log("📋 Initialize response data:", response.data);
-
     // Session ID should be captured by interceptor from headers
     // But also try to get from body as ultimate fallback
     if (response.data.sessionId && !sessionId) {
       sessionId = response.data.sessionId;
-      console.log("⚠️ Using session ID from body (fallback):", sessionId);
     }
 
     if (!sessionId) {
-      console.error("❌ No session ID captured!");
+      console.error("No session ID captured!");
       throw new Error("Failed to get session ID from server");
     }
-
-    console.log("✅ Session initialized with ID:", sessionId);
     return response.data;
   },
 

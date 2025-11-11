@@ -26,6 +26,8 @@ export const AppProvider = ({ children }) => {
     return savedCollapsed !== null ? JSON.parse(savedCollapsed) : false;
   });
 
+  const [onNewChatCallback, setOnNewChatCallback] = useState(null);
+
   useEffect(() => {
     checkServerHealth();
     const interval = setInterval(checkServerHealth, 30000); // Check every 30s
@@ -74,6 +76,8 @@ export const AppProvider = ({ children }) => {
     checkServerHealth,
     sidebarCollapsed,
     toggleSidebar,
+    onNewChatCallback,
+    setOnNewChatCallback,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
