@@ -29,18 +29,36 @@ class ConversationHistory {
   }
 
   /**
-   * Sanitize and validate conversation ID, throwing error if invalid
-   * @param {string} id - The conversation ID to sanitize
-   * @returns {string} - The validated ID
-   * @throws {Error} - If ID is invalid
+   * Sanitize and validate file path to prevent path traversal
+   * @param {string} id - The conversation ID
+   * @returns {string} - The safe, validated file path
+   * @throws {Error} - If ID is invalid or path is unsafe
    */
-  sanitizeConversationId(id) {
+  getSafeFilePath(id) {
+    // First, validate the ID format
     if (!this.validateConversationId(id)) {
       throw new Error(
         "Invalid conversation ID. Only alphanumeric characters, hyphens, and underscores are allowed."
       );
     }
-    return id;
+
+    // Construct the file path
+    const fileName = `${id}.json`;
+    const filePath = path.resolve(this.historyDir, fileName);
+
+    // Verify the resolved path is within the history directory
+    // This prevents path traversal attacks even if validation is bypassed
+    const normalizedHistoryDir = path.resolve(this.historyDir) + path.sep;
+    const normalizedFilePath = path.resolve(filePath) + path.sep;
+
+    if (!normalizedFilePath.startsWith(normalizedHistoryDir)) {
+      throw new Error(
+        "Invalid conversation ID: path traversal detected."
+      );
+    }
+
+    // Return the path without the trailing separator
+    return filePath;
   }
 
   /**
@@ -203,9 +221,8 @@ class ConversationHistory {
    */
   async loadConversation(id) {
     try {
-      // Sanitize ID to prevent path traversal
-      const sanitizedId = this.sanitizeConversationId(id);
-      const filePath = path.join(this.historyDir, `${sanitizedId}.json`);
+      // Get safe file path with validation and path traversal protection
+      const filePath = this.getSafeFilePath(id);
       return await fs.readJSON(filePath);
     } catch (error) {
       if (error.message.includes("Invalid conversation ID")) {
@@ -220,9 +237,8 @@ class ConversationHistory {
    */
   async deleteConversation(id) {
     try {
-      // Sanitize ID to prevent path traversal
-      const sanitizedId = this.sanitizeConversationId(id);
-      const filePath = path.join(this.historyDir, `${sanitizedId}.json`);
+      // Get safe file path with validation and path traversal protection
+      const filePath = this.getSafeFilePath(id);
       await fs.remove(filePath);
       return true;
     } catch (_error) {
@@ -234,9 +250,8 @@ class ConversationHistory {
    * Export conversation to markdown
    */
   async exportToMarkdown(id) {
-    // Sanitize ID to prevent path traversal (loadConversation also does this, but explicit is better)
-    const sanitizedId = this.sanitizeConversationId(id);
-    const conversation = await this.loadConversation(sanitizedId);
+    // loadConversation will handle validation and path traversal protection
+    const conversation = await this.loadConversation(id);
 
     let markdown = `# Conversation - ${conversation.id}\n\n`;
     markdown += `**Started:** ${new Date(conversation.startedAt).toLocaleString()}\n`;
