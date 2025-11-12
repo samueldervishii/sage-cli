@@ -13,6 +13,37 @@ class ConversationHistory {
   }
 
   /**
+   * Validate conversation ID to prevent path traversal attacks
+   * @param {string} id - The conversation ID to validate
+   * @returns {boolean} - True if valid, false otherwise
+   */
+  validateConversationId(id) {
+    if (!id || typeof id !== "string") {
+      return false;
+    }
+
+    // Prevent path traversal by disallowing path separators and special characters
+    // Only allow alphanumeric characters, hyphens, and underscores
+    const validPattern = /^[a-zA-Z0-9_-]+$/;
+    return validPattern.test(id);
+  }
+
+  /**
+   * Sanitize and validate conversation ID, throwing error if invalid
+   * @param {string} id - The conversation ID to sanitize
+   * @returns {string} - The validated ID
+   * @throws {Error} - If ID is invalid
+   */
+  sanitizeConversationId(id) {
+    if (!this.validateConversationId(id)) {
+      throw new Error(
+        "Invalid conversation ID. Only alphanumeric characters, hyphens, and underscores are allowed."
+      );
+    }
+    return id;
+  }
+
+  /**
    * Initialize history directory
    */
   async init() {
@@ -172,9 +203,14 @@ class ConversationHistory {
    */
   async loadConversation(id) {
     try {
-      const filePath = path.join(this.historyDir, `${id}.json`);
+      // Sanitize ID to prevent path traversal
+      const sanitizedId = this.sanitizeConversationId(id);
+      const filePath = path.join(this.historyDir, `${sanitizedId}.json`);
       return await fs.readJSON(filePath);
-    } catch (_error) {
+    } catch (error) {
+      if (error.message.includes("Invalid conversation ID")) {
+        throw error;
+      }
       throw new Error(`Conversation not found: ${id}`);
     }
   }
@@ -184,7 +220,9 @@ class ConversationHistory {
    */
   async deleteConversation(id) {
     try {
-      const filePath = path.join(this.historyDir, `${id}.json`);
+      // Sanitize ID to prevent path traversal
+      const sanitizedId = this.sanitizeConversationId(id);
+      const filePath = path.join(this.historyDir, `${sanitizedId}.json`);
       await fs.remove(filePath);
       return true;
     } catch (_error) {
@@ -196,7 +234,9 @@ class ConversationHistory {
    * Export conversation to markdown
    */
   async exportToMarkdown(id) {
-    const conversation = await this.loadConversation(id);
+    // Sanitize ID to prevent path traversal (loadConversation also does this, but explicit is better)
+    const sanitizedId = this.sanitizeConversationId(id);
+    const conversation = await this.loadConversation(sanitizedId);
 
     let markdown = `# Conversation - ${conversation.id}\n\n`;
     markdown += `**Started:** ${new Date(conversation.startedAt).toLocaleString()}\n`;

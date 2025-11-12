@@ -21,10 +21,10 @@ class SageAPIServer {
   }
 
   setupMiddleware() {
-    // CORS
+    // CORS - restrict to localhost:5173 by default for security
     this.app.use(
       cors({
-        origin: process.env.CORS_ORIGIN || "*",
+        origin: process.env.CORS_ORIGIN || "http://localhost:5173",
         credentials: true,
       })
     );
