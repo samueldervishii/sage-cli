@@ -31,33 +31,46 @@ class ConversationHistory {
   /**
    * Sanitize and validate file path to prevent path traversal
    * @param {string} id - The conversation ID
+   * @param {boolean} mustExist - Whether the file must exist (uses realpathSync)
    * @returns {string} - The safe, validated file path
    * @throws {Error} - If ID is invalid or path is unsafe
    */
-  getSafeFilePath(id) {
-    // First, validate the ID format
+  getSafeFilePath(id, mustExist = false) {
+    // First, validate the ID format to prevent obvious path traversal attempts
     if (!this.validateConversationId(id)) {
       throw new Error(
         "Invalid conversation ID. Only alphanumeric characters, hyphens, and underscores are allowed."
       );
     }
 
-    // Construct the file path
+    // Construct and normalize the file path
     const fileName = `${id}.json`;
-    const filePath = path.resolve(this.historyDir, fileName);
+    let filePath = path.resolve(this.historyDir, fileName);
 
-    // Verify the resolved path is within the history directory
-    // This prevents path traversal attacks even if validation is bypassed
-    const normalizedHistoryDir = path.resolve(this.historyDir) + path.sep;
-    const normalizedFilePath = path.resolve(filePath) + path.sep;
-
-    if (!normalizedFilePath.startsWith(normalizedHistoryDir)) {
-      throw new Error(
-        "Invalid conversation ID: path traversal detected."
-      );
+    // Get the real path of the history directory (resolves symlinks)
+    let normalizedHistoryDir;
+    try {
+      normalizedHistoryDir = fs.realpathSync(this.historyDir);
+    } catch (error) {
+      throw new Error("History directory not accessible");
     }
 
-    // Return the path without the trailing separator
+    // If the file must exist, resolve it to get the real path (resolves symlinks)
+    // This is critical for security - it prevents symlink-based directory traversal
+    if (mustExist) {
+      try {
+        filePath = fs.realpathSync(filePath);
+      } catch (error) {
+        throw new Error(`Conversation not found: ${id}`);
+      }
+    }
+
+    // Verify the resolved path is within the history directory
+    // This prevents path traversal attacks including symlink-based attacks
+    if (!filePath.startsWith(normalizedHistoryDir + path.sep)) {
+      throw new Error("Invalid conversation ID: path traversal detected.");
+    }
+
     return filePath;
   }
 
@@ -220,16 +233,29 @@ class ConversationHistory {
    * Load a specific conversation
    */
   async loadConversation(id) {
-    try {
-      // Get safe file path with validation and path traversal protection
-      const filePath = this.getSafeFilePath(id);
-      return await fs.readJSON(filePath);
-    } catch (error) {
-      if (error.message.includes("Invalid conversation ID")) {
-        throw error;
-      }
-      throw new Error(`Conversation not found: ${id}`);
+    // Validate the ID format to prevent obvious path traversal attempts
+    if (!this.validateConversationId(id)) {
+      throw new Error(
+        "Invalid conversation ID. Only alphanumeric characters, hyphens, and underscores are allowed."
+      );
     }
+
+    // Get the real path of the history directory (resolves symlinks)
+    const ROOT = fs.realpathSync(this.historyDir);
+
+    // Construct the file path and resolve it (following CodeQL recommendation)
+    let filePath = path.resolve(ROOT, `${id}.json`);
+
+    // Resolve the actual file path including any symbolic links
+    filePath = fs.realpathSync(filePath);
+
+    // Verify the resolved path is within the history directory
+    // This prevents path traversal attacks including symlink-based attacks
+    if (!filePath.startsWith(ROOT + path.sep)) {
+      throw new Error("Invalid conversation ID: path traversal detected.");
+    }
+
+    return await fs.readJSON(filePath);
   }
 
   /**
@@ -237,8 +263,25 @@ class ConversationHistory {
    */
   async deleteConversation(id) {
     try {
-      // Get safe file path with validation and path traversal protection
-      const filePath = this.getSafeFilePath(id);
+      // Validate the ID format to prevent obvious path traversal attempts
+      if (!this.validateConversationId(id)) {
+        return false;
+      }
+
+      // Get the real path of the history directory (resolves symlinks)
+      const ROOT = fs.realpathSync(this.historyDir);
+
+      // Construct the file path and resolve it (following CodeQL recommendation)
+      let filePath = path.resolve(ROOT, `${id}.json`);
+
+      // Resolve the actual file path including any symbolic links
+      filePath = fs.realpathSync(filePath);
+
+      // Verify the resolved path is within the history directory
+      if (!filePath.startsWith(ROOT + path.sep)) {
+        return false;
+      }
+
       await fs.remove(filePath);
       return true;
     } catch (_error) {
