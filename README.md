@@ -2,6 +2,8 @@
 
 An intelligent command-line AI assistant powered by Google Gemini with memory, file operations, automatic fallback support, and **REST API**.
 
+> **Disclaimer:** This project is NOT affiliated with, endorsed by, or connected to Sage Group plc or any of its products (Sage Intacct, Sage 50cloud, etc.). This is an independent open-source project.
+
 ## Features
 
 - **Interactive Chat** - REPL-style interface with conversation context

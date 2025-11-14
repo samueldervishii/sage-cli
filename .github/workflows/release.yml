@@ -47,43 +47,34 @@ jobs:
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           echo "Current version: $CURRENT_VERSION"
 
-          if [[ $CURRENT_VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            MAJOR=${BASH_REMATCH[1]}
-            MINOR=${BASH_REMATCH[2]}
-            PATCH=${BASH_REMATCH[3]}
+          # Get current year and month
+          CURRENT_YEAR=$(date +%Y)
+          CURRENT_MONTH=$(date +%-m)  # No leading zero
+
+          # Parse current version (CalVer format: YYYY.MM.MICRO or old SemVer)
+          if [[ $CURRENT_VERSION =~ ^([0-9]{4})\.([0-9]+)\.([0-9]+)$ ]]; then
+            # CalVer format
+            VERSION_YEAR=${BASH_REMATCH[1]}
+            VERSION_MONTH=${BASH_REMATCH[2]}
+            VERSION_MICRO=${BASH_REMATCH[3]}
+
+            # Check if we're in the same year and month
+            if [[ $VERSION_YEAR == $CURRENT_YEAR ]] && [[ $VERSION_MONTH == $CURRENT_MONTH ]]; then
+              # Same month, increment micro version
+              NEW_MICRO=$((VERSION_MICRO + 1))
+              NEW_VERSION="${CURRENT_YEAR}.${CURRENT_MONTH}.${NEW_MICRO}"
+            else
+              # New month or year, start at .1
+              NEW_VERSION="${CURRENT_YEAR}.${CURRENT_MONTH}.1"
+            fi
+          elif [[ $CURRENT_VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            # Old SemVer format, migrate to CalVer
+            echo "Migrating from SemVer to CalVer format"
+            NEW_VERSION="${CURRENT_YEAR}.${CURRENT_MONTH}.1"
           else
             echo "Invalid version format: $CURRENT_VERSION"
-            echo "Expected format: X.Y.Z"
+            echo "Expected format: YYYY.MM.MICRO or X.Y.Z"
             exit 1
-          fi
-
-          # Get commits since last version bump (excluding merge and version bump commits)
-          LAST_VERSION_COMMIT=$(git log --grep="bump version" --format="%H" -1)
-          if [ -n "$LAST_VERSION_COMMIT" ]; then
-            COMMIT_MESSAGES=$(git log ${LAST_VERSION_COMMIT}..HEAD --oneline --pretty=format:"%s" | grep -v -i "bump version" | grep -v "^Merge")
-          else
-            # If no version bump commit found, check last 10 commits
-            COMMIT_MESSAGES=$(git log --oneline -10 --pretty=format:"%s" | grep -v -i "bump version" | grep -v "^Merge")
-          fi
-
-          # Check for breaking changes (bump major version)
-          if echo "$COMMIT_MESSAGES" | grep -qE "^(feat|feature)\(.*\)!:|^(fix|chore)\(.*\)!:|BREAKING CHANGE"; then
-            NEW_MAJOR=$((MAJOR + 1))
-            NEW_VERSION="${NEW_MAJOR}.0.0"
-          # Check for feature commits (bump minor version)
-          elif echo "$COMMIT_MESSAGES" | grep -qE "^feat(\(.*\))?:|^feature(\(.*\))?:"; then
-            NEW_MINOR=$((MINOR + 1))
-            NEW_VERSION="${MAJOR}.${NEW_MINOR}.0"
-          # Default: bump patch version
-          else
-            NEW_PATCH=$((PATCH + 1))
-            # If patch reaches 99, bump minor version and reset patch to 0
-            if [ $NEW_PATCH -ge 99 ]; then
-              NEW_MINOR=$((MINOR + 1))
-              NEW_VERSION="${MAJOR}.${NEW_MINOR}.0"
-            else
-              NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
-            fi
           fi
 
           echo "New version: $NEW_VERSION"
