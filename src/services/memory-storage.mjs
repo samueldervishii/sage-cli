@@ -42,15 +42,20 @@ class MemoryStorage {
   async getMemory(memoryId) {
     await this.ensureInitialized();
 
+    // Validate memoryId is a string
+    if (typeof memoryId !== "string") {
+      throw new Error("memoryId must be a string");
+    }
+
     const memory = await this.collection.findOne(
-      { id: memoryId },
+      { id: { $eq: memoryId } },
       { projection: { _id: 0 } }
     );
 
     if (memory) {
       // Update access count and last accessed time
       await this.collection.updateOne(
-        { id: memoryId },
+        { id: { $eq: memoryId } },
         {
           $inc: { accessCount: 1 },
           $set: { lastAccessed: new Date().toISOString() },
@@ -78,14 +83,31 @@ class MemoryStorage {
       sortOrder = -1,
     } = options;
 
-    const query = category ? { category } : {};
-    const sort = { [sortBy]: sortOrder };
+    // Validate and sanitize inputs
+    const sanitizedLimit = Math.min(Math.max(parseInt(limit) || 100, 1), 100);
+    const sanitizedSkip = Math.max(parseInt(skip) || 0, 0);
+
+    // Whitelist allowed sort fields
+    const allowedSortFields = [
+      "timestamp",
+      "accessCount",
+      "category",
+      "content",
+    ];
+    const sanitizedSortBy = allowedSortFields.includes(sortBy)
+      ? sortBy
+      : "timestamp";
+    const sanitizedSortOrder = sortOrder === 1 ? 1 : -1;
+
+    // Validate category if provided
+    const query = category ? { category: { $eq: category } } : {};
+    const sort = { [sanitizedSortBy]: sanitizedSortOrder };
 
     const memories = await this.collection
       .find(query, { projection: { _id: 0 } })
       .sort(sort)
-      .skip(skip)
-      .limit(limit)
+      .skip(sanitizedSkip)
+      .limit(sanitizedLimit)
       .toArray();
 
     return memories;
@@ -97,12 +119,18 @@ class MemoryStorage {
   async searchMemories(query) {
     await this.ensureInitialized();
 
+    // Validate query is a string and escape special regex characters
+    if (typeof query !== "string") {
+      throw new Error("query must be a string");
+    }
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
     const memories = await this.collection
       .find(
         {
           $or: [
-            { content: { $regex: query, $options: "i" } },
-            { category: { $regex: query, $options: "i" } },
+            { content: { $regex: escapedQuery, $options: "i" } },
+            { category: { $regex: escapedQuery, $options: "i" } },
           ],
         },
         { projection: { _id: 0 } }
@@ -120,6 +148,11 @@ class MemoryStorage {
   async updateMemory(memoryId, updates) {
     await this.ensureInitialized();
 
+    // Validate memoryId is a string
+    if (typeof memoryId !== "string") {
+      throw new Error("memoryId must be a string");
+    }
+
     const allowedUpdates = ["content", "category"];
     const filteredUpdates = {};
 
@@ -134,7 +167,7 @@ class MemoryStorage {
     }
 
     const result = await this.collection.findOneAndUpdate(
-      { id: memoryId },
+      { id: { $eq: memoryId } },
       { $set: filteredUpdates },
       { returnDocument: "after", projection: { _id: 0 } }
     );
@@ -148,7 +181,12 @@ class MemoryStorage {
   async deleteMemory(memoryId) {
     await this.ensureInitialized();
 
-    const result = await this.collection.deleteOne({ id: memoryId });
+    // Validate memoryId is a string
+    if (typeof memoryId !== "string") {
+      throw new Error("memoryId must be a string");
+    }
+
+    const result = await this.collection.deleteOne({ id: { $eq: memoryId } });
     return result.deletedCount > 0;
   }
 
@@ -220,8 +258,13 @@ class MemoryStorage {
   async getMemoriesByCategory(category) {
     await this.ensureInitialized();
 
+    // Validate category is a string
+    if (typeof category !== "string") {
+      throw new Error("category must be a string");
+    }
+
     const memories = await this.collection
-      .find({ category }, { projection: { _id: 0 } })
+      .find({ category: { $eq: category } }, { projection: { _id: 0 } })
       .sort({ timestamp: -1 })
       .toArray();
 
@@ -234,10 +277,13 @@ class MemoryStorage {
   async getMostAccessedMemories(limit = 10) {
     await this.ensureInitialized();
 
+    // Validate and sanitize limit
+    const sanitizedLimit = Math.min(Math.max(parseInt(limit) || 10, 1), 100);
+
     const memories = await this.collection
       .find({}, { projection: { _id: 0 } })
       .sort({ accessCount: -1 })
-      .limit(limit)
+      .limit(sanitizedLimit)
       .toArray();
 
     return memories;
@@ -249,10 +295,13 @@ class MemoryStorage {
   async getRecentMemories(limit = 10) {
     await this.ensureInitialized();
 
+    // Validate and sanitize limit
+    const sanitizedLimit = Math.min(Math.max(parseInt(limit) || 10, 1), 100);
+
     const memories = await this.collection
       .find({}, { projection: { _id: 0 } })
       .sort({ timestamp: -1 })
-      .limit(limit)
+      .limit(sanitizedLimit)
       .toArray();
 
     return memories;
@@ -265,9 +314,12 @@ class MemoryStorage {
   async getContextMemories(limit = 10) {
     await this.ensureInitialized();
 
+    // Validate and sanitize limit
+    const sanitizedLimit = Math.min(Math.max(parseInt(limit) || 10, 1), 50);
+
     // Get a mix of recent and most accessed memories
-    const recentLimit = Math.ceil(limit * 0.6); // 60% recent
-    const accessedLimit = Math.floor(limit * 0.4); // 40% most accessed
+    const recentLimit = Math.ceil(sanitizedLimit * 0.6); // 60% recent
+    const accessedLimit = Math.floor(sanitizedLimit * 0.4); // 40% most accessed
 
     const [recent, accessed] = await Promise.all([
       this.getRecentMemories(recentLimit),
@@ -284,7 +336,7 @@ class MemoryStorage {
       }
     }
 
-    return combined.slice(0, limit);
+    return combined.slice(0, sanitizedLimit);
   }
 
   /**

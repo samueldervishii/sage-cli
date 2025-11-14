@@ -46,13 +46,18 @@ class ConversationStorage {
   async addMessage(conversationId, message) {
     await this.ensureInitialized();
 
+    // Validate conversationId is a string
+    if (typeof conversationId !== "string") {
+      throw new Error("conversationId must be a string");
+    }
+
     const messageWithTimestamp = {
       ...message,
       timestamp: new Date().toISOString(),
     };
 
     const result = await this.collection.updateOne(
-      { id: conversationId, deleted: false },
+      { id: { $eq: conversationId }, deleted: false },
       {
         $push: { messages: messageWithTimestamp },
         $set: { lastMessageAt: new Date().toISOString() },
@@ -74,8 +79,13 @@ class ConversationStorage {
   async getConversation(conversationId) {
     await this.ensureInitialized();
 
+    // Validate conversationId is a string
+    if (typeof conversationId !== "string") {
+      throw new Error("conversationId must be a string");
+    }
+
     const conversation = await this.collection.findOne(
-      { id: conversationId, deleted: false },
+      { id: { $eq: conversationId }, deleted: false },
       { projection: { _id: 0 } }
     );
 
@@ -90,13 +100,17 @@ class ConversationStorage {
 
     const { limit = 50, skip = 0, includeDeleted = false } = options;
 
+    // Validate and sanitize numeric inputs
+    const sanitizedLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 100);
+    const sanitizedSkip = Math.max(parseInt(skip) || 0, 0);
+
     const query = includeDeleted ? {} : { deleted: false };
 
     const conversations = await this.collection
       .find(query, { projection: { _id: 0 } })
       .sort({ lastMessageAt: -1 })
-      .skip(skip)
-      .limit(limit)
+      .skip(sanitizedSkip)
+      .limit(sanitizedLimit)
       .toArray();
 
     // Add computed fields
@@ -114,8 +128,13 @@ class ConversationStorage {
   async deleteConversation(conversationId) {
     await this.ensureInitialized();
 
+    // Validate conversationId is a string
+    if (typeof conversationId !== "string") {
+      throw new Error("conversationId must be a string");
+    }
+
     const result = await this.collection.updateOne(
-      { id: conversationId },
+      { id: { $eq: conversationId } },
       {
         $set: {
           deleted: true,
@@ -133,7 +152,14 @@ class ConversationStorage {
   async permanentlyDeleteConversation(conversationId) {
     await this.ensureInitialized();
 
-    const result = await this.collection.deleteOne({ id: conversationId });
+    // Validate conversationId is a string
+    if (typeof conversationId !== "string") {
+      throw new Error("conversationId must be a string");
+    }
+
+    const result = await this.collection.deleteOne({
+      id: { $eq: conversationId },
+    });
     return result.deletedCount > 0;
   }
 
@@ -143,8 +169,13 @@ class ConversationStorage {
   async restoreConversation(conversationId) {
     await this.ensureInitialized();
 
+    // Validate conversationId is a string
+    if (typeof conversationId !== "string") {
+      throw new Error("conversationId must be a string");
+    }
+
     const result = await this.collection.updateOne(
-      { id: conversationId, deleted: true },
+      { id: { $eq: conversationId }, deleted: true },
       {
         $set: { deleted: false },
         $unset: { deletedAt: "" },
@@ -216,13 +247,24 @@ class ConversationStorage {
   async searchConversations(query) {
     await this.ensureInitialized();
 
+    // Validate query is a string and escape special regex characters
+    if (typeof query !== "string") {
+      throw new Error("query must be a string");
+    }
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
     const conversations = await this.collection
       .find(
         {
           deleted: false,
           $or: [
-            { "messages.content": { $regex: query, $options: "i" } },
-            { "metadata.workingDirectory": { $regex: query, $options: "i" } },
+            { "messages.content": { $regex: escapedQuery, $options: "i" } },
+            {
+              "metadata.workingDirectory": {
+                $regex: escapedQuery,
+                $options: "i",
+              },
+            },
           ],
         },
         { projection: { _id: 0 } }
