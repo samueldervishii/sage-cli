@@ -5,4 +5,6 @@ conversations/
 .claude/
 .samuelrc.json
 generated/
-.idea/
+.idea/package-lock.json
+package-lock.json
+.idea
