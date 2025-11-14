@@ -19,17 +19,20 @@ function getChatService(sessionId) {
 /**
  * POST /api/chat/initialize
  * Initialize a new chat session or resume existing conversation
+ * Body: { conversationId?: string, modelParams?: object }
  */
 router.post("/initialize", async (req, res, next) => {
   try {
-    const { conversationId } = req.body;
+    const { conversationId, modelParams } = req.body;
     const chatService = getChatService(req.sessionId);
 
-    const result = await chatService.initialize(conversationId);
+    // Initialize with optional model parameters
+    const result = await chatService.initialize(conversationId, modelParams);
 
     res.json({
       success: true,
       sessionId: req.sessionId,
+      modelConfig: chatService.getModelConfig(),
       ...result,
     });
   } catch (error) {
@@ -74,6 +77,7 @@ router.post("/send", async (req, res, next) => {
         functionCalls: response.functionCalls || [],
         fallback: response.fallback || false,
         model: response.model,
+        conversationId: response.conversationId,
       });
     } else {
       res.status(500).json({
@@ -118,6 +122,101 @@ router.delete("/session", (req, res) => {
   res.json({
     success: true,
     message: "Session cleared",
+  });
+});
+
+/**
+ * GET /api/chat/config
+ * Get current model configuration
+ */
+router.get("/config", (req, res) => {
+  let chatService = chatInstances.get(req.sessionId);
+
+  // If no session exists, create one with defaults
+  if (!chatService) {
+    chatService = new ChatService();
+    chatInstances.set(req.sessionId, chatService);
+  }
+
+  res.json({
+    success: true,
+    config: chatService.getModelConfig(),
+  });
+});
+
+/**
+ * POST /api/chat/config
+ * Update model configuration
+ * Body: { temperature?: number, maxOutputTokens?: number, topP?: number, topK?: number, memoryMode?: string, selectedModel?: string }
+ */
+router.post("/config", (req, res, next) => {
+  try {
+    let chatService = chatInstances.get(req.sessionId);
+
+    // If no session exists, create one
+    if (!chatService) {
+      chatService = new ChatService();
+      chatInstances.set(req.sessionId, chatService);
+    }
+
+    const params = req.body;
+
+    // Validate that at least one parameter is provided
+    if (
+      !params ||
+      Object.keys(params).length === 0 ||
+      (!params.temperature &&
+        !params.maxOutputTokens &&
+        !params.topP &&
+        !params.topK &&
+        !params.memoryMode &&
+        !params.selectedModel)
+    ) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "At least one model parameter must be provided",
+      });
+    }
+
+    const result = chatService.updateModelConfig(params);
+
+    if (!result.success) {
+      return res.status(400).json({
+        error: "Validation Error",
+        message: "Invalid model parameters",
+        errors: result.errors,
+      });
+    }
+
+    res.json({
+      success: true,
+      config: result.config,
+      message: "Model configuration updated successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/chat/config/reset
+ * Reset model configuration to defaults
+ */
+router.post("/config/reset", (req, res) => {
+  let chatService = chatInstances.get(req.sessionId);
+
+  // If no session exists, create one
+  if (!chatService) {
+    chatService = new ChatService();
+    chatInstances.set(req.sessionId, chatService);
+  }
+
+  const result = chatService.resetModelConfig();
+
+  res.json({
+    success: true,
+    config: result.config,
+    message: "Model configuration reset to defaults",
   });
 });
 

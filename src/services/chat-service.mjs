@@ -3,8 +3,9 @@ import SearchService from "../utils/search-service.mjs";
 import ConfigManager from "../config/config-manager.mjs";
 import FileOperations from "../utils/file-operations.mjs";
 import ConversationHistory from "../utils/conversation-history.mjs";
-import MemoryManager from "../utils/memory-manager.mjs";
 import OpenRouterClient from "../utils/openrouter-client.mjs";
+import conversationStorage from "./conversation-storage.mjs";
+import memoryStorage from "./memory-storage.mjs";
 
 /**
  * ChatService - UI-agnostic chat service
@@ -16,15 +17,119 @@ class ChatService {
     this.configManager = new ConfigManager();
     this.fileOps = new FileOperations();
     this.history = new ConversationHistory();
-    this.memory = new MemoryManager();
     this.openrouterClient = null;
     this.conversationHistory = [];
     this.model = null;
     this.genAI = null;
     this.searchService = null;
+    this.currentConversationId = null; // MongoDB UUID for current conversation
+
+    // Model configuration with sensible defaults
+    this.modelConfig = {
+      selectedModel: "gemini", // gemini, deepseek
+      temperature: 1.0,
+      maxOutputTokens: 8192,
+      topP: 0.95,
+      topK: 40,
+      memoryMode: "active", // off, passive, active
+    };
   }
 
-  async initialize(conversationId = null) {
+  async initialize(conversationId = null, modelParams = null) {
+    // Update model configuration if provided
+    if (modelParams) {
+      this.updateModelConfig(modelParams);
+    }
+
+    const selectedModel = this.modelConfig.selectedModel || "gemini";
+
+    // Initialize based on selected model
+    if (selectedModel === "gemini") {
+      await this._initializeGemini();
+    } else if (selectedModel === "deepseek") {
+      await this._initializeDeepSeek();
+    } else {
+      throw new Error(`Unknown model: ${selectedModel}`);
+    }
+
+    this.conversationHistory = [];
+    this.searchService = new SearchService();
+
+    // Initialize conversation history
+    await this.history.init();
+
+    // Initialize OpenRouter client if API key is available (for fallback)
+    const openrouterKey = await this.configManager.getApiKey("openrouter");
+    if (openrouterKey) {
+      const config = await this.configManager.loadConfig();
+      const openrouterModel =
+        config.preferences?.openrouterModel ||
+        "deepseek/deepseek-r1-distill-llama-70b:free";
+      this.openrouterClient = new OpenRouterClient(
+        openrouterKey,
+        openrouterModel
+      );
+    }
+
+    // If resuming, load existing conversation from MongoDB; otherwise create new
+    if (conversationId) {
+      const existingConversation =
+        await conversationStorage.getConversation(conversationId);
+
+      if (existingConversation) {
+        this.currentConversationId = conversationId;
+
+        // Also update old history object for backward compatibility
+        this.history.currentConversationId = conversationId;
+        this.history.currentConversation = existingConversation;
+
+        // Load messages into conversation history for Gemini
+        if (
+          existingConversation.messages &&
+          existingConversation.messages.length > 0
+        ) {
+          for (const msg of existingConversation.messages) {
+            this.conversationHistory.push({
+              role: msg.role,
+              parts: [{ text: msg.content }],
+              timestamp: msg.timestamp,
+            });
+          }
+        }
+
+        return {
+          resumed: true,
+          conversationId,
+          conversation: existingConversation,
+        };
+      } else {
+        // Conversation not found, create new one
+        const newConversation = await conversationStorage.createConversation();
+        this.currentConversationId = newConversation.id;
+        this.history.currentConversationId = newConversation.id;
+
+        return {
+          resumed: false,
+          conversationId: newConversation.id,
+        };
+      }
+    } else {
+      // Don't create conversation yet - wait for first message
+      this.currentConversationId = null;
+      this.history.currentConversationId = null;
+
+      return {
+        resumed: false,
+        conversationId: null, // Will be created on first message
+      };
+    }
+  }
+
+  /**
+   * Initialize Gemini model
+   * @private
+   */
+  async _initializeGemini() {
     const apiKey = await this.configManager.getApiKey("gemini");
     if (!apiKey) {
       throw new Error(
@@ -43,6 +148,9 @@ class ChatService {
     // Get model from config
     const modelName = await this.configManager.getGeminiModel();
 
+    // Build generation config with validated parameters
+    const generationConfig = this._buildGenerationConfig();
+
     this.model = this.genAI.getGenerativeModel({
       model: modelName,
       tools: tools,
@@ -50,59 +158,31 @@ class ChatService {
         parts: [{ text: systemInstruction }],
         role: "system",
       },
+      generationConfig: generationConfig,
     });
-    this.conversationHistory = [];
-    this.searchService = new SearchService();
+  }
 
-    // Initialize conversation history
-    await this.history.init();
-
-    // Initialize memory system
-    await this.memory.init();
-
-    // Initialize OpenRouter client if API key is available (for fallback)
+  /**
+   * Initialize DeepSeek model via OpenRouter
+   * @private
+   */
+  async _initializeDeepSeek() {
     const openrouterKey = await this.configManager.getApiKey("openrouter");
-    if (openrouterKey) {
-      const config = await this.configManager.loadConfig();
-      const openrouterModel =
-        config.preferences?.openrouterModel ||
-        "deepseek/deepseek-r1-distill-llama-70b:free";
-      this.openrouterClient = new OpenRouterClient(
-        openrouterKey,
-        openrouterModel
+    if (!openrouterKey) {
+      throw new Error(
+        "OPENROUTER_API_KEY not found in configuration. Run 'sage setup' to configure API keys."
       );
     }
 
-    // If resuming, load existing conversation; otherwise start new
-    if (conversationId) {
-      const existingConversation =
-        await this.history.loadConversation(conversationId);
-      this.history.currentConversationId = conversationId;
-      this.history.currentConversation = existingConversation;
+    const config = await this.configManager.loadConfig();
+    const deepseekModel =
+      config.preferences?.openrouterModel ||
+      "deepseek/deepseek-r1-distill-llama-70b:free";
 
-      // Load messages into conversation history for Gemini
-      if (existingConversation.messages.length > 0) {
-        for (const msg of existingConversation.messages) {
-          this.conversationHistory.push({
-            role: msg.role,
-            parts: [{ text: msg.content }],
-            timestamp: msg.timestamp,
-          });
-        }
-      }
+    this.openrouterClient = new OpenRouterClient(openrouterKey, deepseekModel);
 
-      return {
-        resumed: true,
-        conversationId,
-        conversation: existingConversation,
-      };
-    } else {
-      await this.history.startNewConversation();
-      return {
-        resumed: false,
-        conversationId: this.history.currentConversationId,
-      };
-    }
+    // Store tools for DeepSeek
+    this.tools = this._buildToolDefinitions();
   }
 
   /**
@@ -126,6 +206,13 @@ class ChatService {
     } = callbacks;
 
     try {
+      // Create conversation on first message if it doesn't exist
+      if (!this.currentConversationId) {
+        const newConversation = await conversationStorage.createConversation();
+        this.currentConversationId = newConversation.id;
+        this.history.currentConversationId = newConversation.id;
+      }
+
       // Add user message to history
       this.conversationHistory.push({
         role: "user",
@@ -133,7 +220,11 @@ class ChatService {
         timestamp: new Date().toISOString(),
       });
 
-      await this.history.addMessage("user", userInput);
+      // Save user message to MongoDB
+      await conversationStorage.addMessage(this.currentConversationId, {
+        role: "user",
+        content: userInput,
+      });
 
       let finalInput = userInput;
       let searchResults = null;
@@ -156,110 +247,20 @@ class ChatService {
 
       if (onThinking) onThinking();
 
-      const cleanHistory = this.conversationHistory.map(msg => ({
-        role: msg.role,
-        parts: msg.parts,
-      }));
-
-      const chat = this.model.startChat({
-        history: cleanHistory,
-      });
-
-      let result = await chat.sendMessage(finalInput);
-      let response = result.response;
-
-      // Check for function calls
-      const functionCalls = response.functionCalls();
-
-      if (functionCalls && functionCalls.length > 0) {
-        const functionResponses = [];
-
-        for (const call of functionCalls) {
-          if (onFunctionCall) onFunctionCall(call.name);
-
-          if (!call.name || !call.args || typeof call.args !== "object") {
-            continue;
-          }
-
-          let functionResult;
-
-          switch (call.name) {
-            case "remember_info":
-              functionResult = await this._handleRememberInfo(
-                call.args,
-                onMemoryStore
-              );
-              break;
-            case "recall_info":
-              functionResult = await this._handleRecallInfo(
-                call.args,
-                onMemoryRecall
-              );
-              break;
-            case "search_files":
-              functionResult = await this._handleSearchFiles(
-                call.args,
-                onSearchFiles
-              );
-              break;
-            case "read_file":
-              functionResult = await this._handleReadFile(
-                call.args,
-                onFileRead
-              );
-              break;
-            case "write_file":
-              functionResult = await this._handleWriteFile(
-                call.args,
-                onFileWrite
-              );
-              break;
-          }
-
-          if (functionResult) {
-            functionResponses.push(functionResult);
-          }
-        }
-
-        if (onProcessing) onProcessing();
-
-        // Send function results back to model
-        const functionResponseMessages = functionResponses.map(fr => ({
-          functionResponse: {
-            name: fr.name,
-            response: fr.response,
-          },
-        }));
-
-        result = await chat.sendMessage(functionResponseMessages);
-        response = result.response;
+      // Route to appropriate model
+      if (this.modelConfig.selectedModel === "deepseek") {
+        return await this._sendMessageDeepSeek(
+          finalInput,
+          searchResults,
+          callbacks
+        );
+      } else {
+        return await this._sendMessageGemini(
+          finalInput,
+          searchResults,
+          callbacks
+        );
       }
-
-      const reply = response.text();
-      const functionCallNames = functionCalls
-        ? functionCalls.map(fc => fc.name)
-        : [];
-
-      this.conversationHistory.push({
-        role: "model",
-        parts: [{ text: reply }],
-        timestamp: new Date().toISOString(),
-        searchUsed: !!searchResults,
-      });
-
-      await this.history.addMessage("model", reply, {
-        searchUsed: !!searchResults,
-        functionCalls:
-          functionCallNames.length > 0 ? functionCallNames : undefined,
-      });
-
-      return {
-        success: true,
-        reply,
-        searchUsed: !!searchResults,
-        functionCalls: functionCallNames,
-        searchResults: searchResults?.results,
-      };
     } catch (error) {
       // Try fallback to OpenRouter if rate limited
       const errorMsg = error.message || String(error);
@@ -276,8 +277,8 @@ class ChatService {
             this.conversationHistory
           );
 
-          const contextMemories = this.memory.getContextMemories(10);
-          const memoryContext = this.memory.formatForContext(contextMemories);
+          const contextMemories = await memoryStorage.getContextMemories(10);
+          const memoryContext = memoryStorage.formatForContext(contextMemories);
 
           const systemMessage = {
             role: "system",
@@ -299,7 +300,10 @@ class ChatService {
               timestamp: new Date().toISOString(),
             });
 
-            await this.history.addMessage("model", reply, {
+            // Save model response to MongoDB
+            await conversationStorage.addMessage(this.currentConversationId, {
+              role: "model",
+              content: reply,
               fallback: true,
               model: fallbackResponse.model,
             });
@@ -309,6 +313,7 @@ class ChatService {
               reply,
               fallback: true,
               model: fallbackResponse.model,
+              conversationId: this.currentConversationId,
             };
           }
         } catch (_fallbackError) {
@@ -325,6 +330,297 @@ class ChatService {
         },
       };
     }
+  }
+
+  /**
+   * Send message using Gemini
+   * @private
+   */
+  async _sendMessageGemini(finalInput, searchResults, callbacks) {
+    const {
+      onFunctionCall,
+      onFileRead,
+      onFileWrite,
+      onSearchFiles,
+      onMemoryStore,
+      onMemoryRecall,
+      onProcessing,
+    } = callbacks;
+
+    const cleanHistory = this.conversationHistory.map(msg => ({
+      role: msg.role,
+      parts: msg.parts,
+    }));
+
+    const chat = this.model.startChat({
+      history: cleanHistory,
+    });
+
+    let result = await chat.sendMessage(finalInput);
+    let response = result.response;
+
+    // Check for function calls
+    const functionCalls = response.functionCalls();
+
+    if (functionCalls && functionCalls.length > 0) {
+      const functionResponses = [];
+
+      for (const call of functionCalls) {
+        if (onFunctionCall) onFunctionCall(call.name);
+
+        if (!call.name || !call.args || typeof call.args !== "object") {
+          continue;
+        }
+
+        let functionResult;
+
+        switch (call.name) {
+          case "remember_info":
+            functionResult = await this._handleRememberInfo(
+              call.args,
+              onMemoryStore
+            );
+            break;
+          case "recall_info":
+            functionResult = await this._handleRecallInfo(
+              call.args,
+              onMemoryRecall
+            );
+            break;
+          case "search_files":
+            functionResult = await this._handleSearchFiles(
+              call.args,
+              onSearchFiles
+            );
+            break;
+          case "read_file":
+            functionResult = await this._handleReadFile(call.args, onFileRead);
+            break;
+          case "write_file":
+            functionResult = await this._handleWriteFile(
+              call.args,
+              onFileWrite
+            );
+            break;
+        }
+
+        if (functionResult) {
+          functionResponses.push(functionResult);
+        }
+      }
+
+      if (onProcessing) onProcessing();
+
+      // Send function results back to model
+      const functionResponseMessages = functionResponses.map(fr => ({
+        functionResponse: {
+          name: fr.name,
+          response: fr.response,
+        },
+      }));
+
+      result = await chat.sendMessage(functionResponseMessages);
+      response = result.response;
+    }
+
+    const reply = response.text();
+    const functionCallNames = functionCalls
+      ? functionCalls.map(fc => fc.name)
+      : [];
+
+    this.conversationHistory.push({
+      role: "model",
+      parts: [{ text: reply }],
+      timestamp: new Date().toISOString(),
+      searchUsed: !!searchResults,
+    });
+
+    // Save model response to MongoDB
+    await conversationStorage.addMessage(this.currentConversationId, {
+      role: "model",
+      content: reply,
+      searchUsed: !!searchResults,
+      functionCalls:
+        functionCallNames.length > 0 ? functionCallNames : undefined,
+      model: this.modelConfig.selectedModel,
+    });
+
+    return {
+      success: true,
+      reply,
+      searchUsed: !!searchResults,
+      functionCalls: functionCallNames,
+      searchResults: searchResults?.results,
+      model: "gemini",
+      conversationId: this.currentConversationId,
+    };
+  }
+
+  /**
+   * Send message using DeepSeek via OpenRouter
+   * @private
+   */
+  async _sendMessageDeepSeek(finalInput, searchResults, callbacks) {
+    const {
+      onFunctionCall,
+      onFileRead,
+      onFileWrite,
+      onSearchFiles,
+      onMemoryStore,
+      onMemoryRecall,
+      onProcessing,
+    } = callbacks;
+
+    // Convert history to OpenRouter format
+    const openrouterMessages = this.openrouterClient.convertGeminiHistory(
+      this.conversationHistory
+    );
+
+    // Add system instruction with memory context
+    const contextMemories = await memoryStorage.getContextMemories(10);
+    const memoryContext = memoryStorage.formatForContext(contextMemories);
+    const systemInstruction = this._buildSystemInstruction();
+
+    const systemMessage = {
+      role: "system",
+      content: `${systemInstruction}\n\n${memoryContext}`,
+    };
+    openrouterMessages.unshift(systemMessage);
+
+    // Add current user message
+    openrouterMessages.push({
+      role: "user",
+      content: finalInput,
+    });
+
+    // Convert tools to OpenRouter format
+    const openrouterTools = this.openrouterClient.convertGeminiTools(
+      this.tools
+    );
+
+    // Send message with tools
+    const response = await this.openrouterClient.chatCompletion(
+      openrouterMessages,
+      {
+        temperature: this.modelConfig.temperature,
+        maxTokens: this.modelConfig.maxOutputTokens,
+        tools: openrouterTools,
+      }
+    );
+
+    if (!response.success) {
+      throw new Error(response.error);
+    }
+
+    let reply = response.content;
+    let functionCallNames = [];
+
+    // Handle tool calls if present
+    if (response.toolCalls && response.toolCalls.length > 0) {
+      const functionResponses = [];
+
+      for (const toolCall of response.toolCalls) {
+        const functionName = toolCall.function.name;
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+
+        if (onFunctionCall) onFunctionCall(functionName);
+        functionCallNames.push(functionName);
+
+        let functionResult;
+
+        switch (functionName) {
+          case "remember_info":
+            functionResult = await this._handleRememberInfo(
+              functionArgs,
+              onMemoryStore
+            );
+            break;
+          case "recall_info":
+            functionResult = await this._handleRecallInfo(
+              functionArgs,
+              onMemoryRecall
+            );
+            break;
+          case "search_files":
+            functionResult = await this._handleSearchFiles(
+              functionArgs,
+              onSearchFiles
+            );
+            break;
+          case "read_file":
+            functionResult = await this._handleReadFile(
+              functionArgs,
+              onFileRead
+            );
+            break;
+          case "write_file":
+            functionResult = await this._handleWriteFile(
+              functionArgs,
+              onFileWrite
+            );
+            break;
+        }
+
+        if (functionResult) {
+          functionResponses.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            name: functionName,
+            content: JSON.stringify(functionResult.response),
+          });
+        }
+      }
+
+      if (onProcessing) onProcessing();
+
+      // Send function results back to model
+      const followUpMessages = [...openrouterMessages];
+      followUpMessages.push({
+        role: "assistant",
+        content: response.content || "",
+        tool_calls: response.toolCalls,
+      });
+      followUpMessages.push(...functionResponses);
+
+      const followUpResponse = await this.openrouterClient.chatCompletion(
+        followUpMessages,
+        {
+          temperature: this.modelConfig.temperature,
+          maxTokens: this.modelConfig.maxOutputTokens,
+        }
+      );
+
+      if (followUpResponse.success) {
+        reply = followUpResponse.content;
+      }
+    }
+
+    this.conversationHistory.push({
+      role: "model",
+      parts: [{ text: reply }],
+      timestamp: new Date().toISOString(),
+      searchUsed: !!searchResults,
+    });
+
+    // Save model response to MongoDB
+    await conversationStorage.addMessage(this.currentConversationId, {
+      role: "model",
+      content: reply,
+      searchUsed: !!searchResults,
+      functionCalls:
+        functionCallNames.length > 0 ? functionCallNames : undefined,
+      model: response.model,
+    });
+
+    return {
+      success: true,
+      reply,
+      searchUsed: !!searchResults,
+      functionCalls: functionCallNames,
+      searchResults: searchResults?.results,
+      model: response.model,
+      conversationId: this.currentConversationId,
+    };
   }
 
   /**
@@ -442,34 +738,56 @@ class ChatService {
    */
   _buildSystemInstruction() {
     const currentDir = process.cwd();
-    return `You are Sage, an intelligent AI assistant. You are helpful, creative, and conversational.
+    const memoryMode = this.modelConfig.memoryMode || "active";
 
-Key traits:
-- Be friendly and personable
-- Provide clear, helpful responses
-- Ask follow-up questions when appropriate
-- Remember context from our conversation
-- Be concise but thorough
-
-You can help with:
-- Generating code
-- Answering questions with real-time web search when needed
-- Reading and analyzing files from the filesystem
-- Creating and modifying files
-- Remembering information about the user for personalized responses
-- Problem solving
-- Creative tasks
-- Technical discussions
-- General conversation
-
-Memory System:
+    // Build memory instructions based on mode
+    let memoryInstructions = "";
+    if (memoryMode === "off") {
+      memoryInstructions = `Memory System: DISABLED
+- You do not have access to stored memories in this session
+- Focus on the current conversation context only
+- Do not attempt to use remember_info or recall_info functions`;
+    } else if (memoryMode === "passive") {
+      memoryInstructions = `Memory System: PASSIVE MODE
+- You have the ability to remember information about the user across conversations
+- When a user EXPLICITLY asks you to remember something, use the remember_info function
+- Only use recall_info when the user explicitly asks you to recall something (e.g., "What do you remember about me?")
+- Do NOT proactively check memory unless explicitly requested
+- Focus on providing direct, context-independent responses`;
+    } else {
+      // active mode (default)
+      memoryInstructions = `Memory System: ACTIVE MODE
 - You have the ability to remember information about the user across conversations
 - When a user asks you to remember something or mentions preferences/facts about themselves, use the remember_info function
 - IMPORTANT: ALWAYS use recall_info FIRST before answering questions that could benefit from personalization
 - Before asking the user for preferences, ALWAYS check recall_info to see if you already know them
 - Common queries to check memory for: recommendations (food, movies, books), preferences, personal facts, project context
 - Examples of things to remember: preferences (likes blueberries), facts (works as a developer), context (working on project X), etc.
-- Be proactive about using memory - check it often! Don't ask for information you might already have stored
+- Be proactive about using memory - check it often! Don't ask for information you might already have stored`;
+    }
+
+    return `You are Sage, an intelligent AI assistant accessible through a modern web interface. You are NOT a CLI tool, data analysis tool, or any other specific software - you are a conversational AI assistant that helps users with various tasks.
+
+Key traits:
+- Be friendly and personable
+- Provide clear, well-formatted responses using markdown
+- Respond naturally to greetings and casual conversation
+- Ask follow-up questions when appropriate
+- Remember context from our conversation
+- Be concise but thorough
+- Format your responses with proper markdown (use **bold** for emphasis, code blocks for code, lists for lists, etc.)
+- NEVER make up information about "Sage CLI" or pretend to be a specific tool - you are an AI assistant named Sage
+
+You can help with:
+- Programming and Development: Writing code, debugging, code review, explaining programming concepts
+- Problem Solving: Breaking down complex problems, brainstorming solutions, step-by-step guidance
+- Creative Assistance: Writing, content creation, idea generation, design suggestions
+- General Knowledge: Explaining topics, tutorials, research assistance on any subject
+- File Operations: Reading, analyzing, and creating files in the user's project
+- Web Search: Finding up-to-date information when needed
+- Memory: Remembering user preferences and context for personalized responses
+
+${memoryInstructions}
 
 When provided with search results, incorporate them naturally into your responses and cite sources when relevant.
 When asked to generate code, provide clean, working examples with explanations.
@@ -502,13 +820,14 @@ Search Strategy:
     const { content, category } = args;
     if (callback) callback({ content, category });
 
-    const result = await this.memory.remember(content, category);
+    const memory = await memoryStorage.addMemory(content, category);
 
     return {
       name: "remember_info",
       response: {
-        success: result.success,
-        message: result.message,
+        success: true,
+        message: `Stored memory: ${content}`,
+        memoryId: memory.id,
       },
     };
   }
@@ -518,7 +837,7 @@ Search Strategy:
    */
   async _handleRecallInfo(args, callback) {
     const { query } = args;
-    const memories = await this.memory.searchMemories(query);
+    const memories = await memoryStorage.searchMemories(query);
 
     if (callback) callback({ query, memories });
 
@@ -659,7 +978,7 @@ Search Strategy:
       errorMsg.includes("Too Many Requests") ||
       errorMsg.includes("Resource exhausted")
     ) {
-      return "Rate limit exceeded. Please wait a moment and try again.";
+      return "AI provider rate limit exceeded (Gemini/DeepSeek free tier limit). Please wait a moment before trying again, or consider upgrading to a paid API key for higher limits.";
     }
 
     if (
@@ -687,6 +1006,141 @@ Search Strategy:
     }
 
     return "Something went wrong. Please try again.";
+  }
+
+  /**
+   * Build generation config from current model configuration
+   * @private
+   */
+  _buildGenerationConfig() {
+    return {
+      temperature: this.modelConfig.temperature,
+      maxOutputTokens: this.modelConfig.maxOutputTokens,
+      topP: this.modelConfig.topP,
+      topK: this.modelConfig.topK,
+    };
+  }
+
+  /**
+   * Validate model parameters
+   * @private
+   */
+  _validateModelParams(params) {
+    const errors = [];
+
+    if (params.temperature !== undefined) {
+      const temp = parseFloat(params.temperature);
+      if (isNaN(temp) || temp < 0 || temp > 2) {
+        errors.push("Temperature must be between 0 and 2");
+      }
+    }
+
+    if (params.maxOutputTokens !== undefined) {
+      const tokens = parseInt(params.maxOutputTokens);
+      if (isNaN(tokens) || tokens < 1 || tokens > 8192) {
+        errors.push("Max output tokens must be between 1 and 8192");
+      }
+    }
+
+    if (params.topP !== undefined) {
+      const topP = parseFloat(params.topP);
+      if (isNaN(topP) || topP < 0 || topP > 1) {
+        errors.push("TopP must be between 0 and 1");
+      }
+    }
+
+    if (params.topK !== undefined) {
+      const topK = parseInt(params.topK);
+      if (isNaN(topK) || topK < 1 || topK > 100) {
+        errors.push("TopK must be between 1 and 100");
+      }
+    }
+
+    if (params.memoryMode !== undefined) {
+      const validModes = ["off", "passive", "active"];
+      if (!validModes.includes(params.memoryMode)) {
+        errors.push("Memory mode must be one of: off, passive, active");
+      }
+    }
+
+    if (params.selectedModel !== undefined) {
+      const validModels = ["gemini", "deepseek"];
+      if (!validModels.includes(params.selectedModel)) {
+        errors.push("Selected model must be one of: gemini, deepseek");
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
+  /**
+   * Update model configuration with validation
+   * @param {object} params - Model parameters to update
+   * @returns {object} Update result
+   */
+  updateModelConfig(params) {
+    const validation = this._validateModelParams(params);
+
+    if (!validation.valid) {
+      return {
+        success: false,
+        errors: validation.errors,
+      };
+    }
+
+    // Update only provided parameters
+    if (params.temperature !== undefined) {
+      this.modelConfig.temperature = parseFloat(params.temperature);
+    }
+    if (params.maxOutputTokens !== undefined) {
+      this.modelConfig.maxOutputTokens = parseInt(params.maxOutputTokens);
+    }
+    if (params.topP !== undefined) {
+      this.modelConfig.topP = parseFloat(params.topP);
+    }
+    if (params.topK !== undefined) {
+      this.modelConfig.topK = parseInt(params.topK);
+    }
+    if (params.memoryMode !== undefined) {
+      this.modelConfig.memoryMode = params.memoryMode;
+    }
+    if (params.selectedModel !== undefined) {
+      this.modelConfig.selectedModel = params.selectedModel;
+    }
+
+    return {
+      success: true,
+      config: { ...this.modelConfig },
+    };
+  }
+
+  /**
+   * Get current model configuration
+   * @returns {object} Current model config
+   */
+  getModelConfig() {
+    return { ...this.modelConfig };
+  }
+
+  /**
+   * Reset model configuration to defaults
+   */
+  resetModelConfig() {
+    this.modelConfig = {
+      selectedModel: "gemini",
+      temperature: 1.0,
+      maxOutputTokens: 8192,
+      topP: 0.95,
+      topK: 40,
+      memoryMode: "active",
+    };
+    return {
+      success: true,
+      config: { ...this.modelConfig },
+    };
   }
 }
 

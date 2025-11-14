@@ -87,6 +87,22 @@ export const chatAPI = {
   },
 
   getSessionId: () => sessionId,
+
+  // Model configuration
+  getConfig: async () => {
+    const response = await api.get("/api/chat/config");
+    return response.data;
+  },
+
+  updateConfig: async params => {
+    const response = await api.post("/api/chat/config", params);
+    return response.data;
+  },
+
+  resetConfig: async () => {
+    const response = await api.post("/api/chat/config/reset");
+    return response.data;
+  },
 };
 
 // Memory API

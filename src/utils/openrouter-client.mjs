@@ -16,15 +16,22 @@ class OpenRouterClient {
    */
   async chatCompletion(messages, options = {}) {
     try {
+      const requestBody = {
+        model: this.model,
+        messages: messages,
+        temperature: options.temperature || 0.7,
+        max_tokens: options.maxTokens || 4000,
+        stream: false,
+      };
+
+      // Add tools/function calling if provided
+      if (options.tools && options.tools.length > 0) {
+        requestBody.tools = options.tools;
+      }
+
       const response = await axios.post(
         `${this.baseURL}/chat/completions`,
-        {
-          model: this.model,
-          messages: messages,
-          temperature: options.temperature || 0.7,
-          max_tokens: options.maxTokens || 4000,
-          stream: false,
-        },
+        requestBody,
         {
           headers: {
             Authorization: `Bearer ${this.apiKey}`,
@@ -37,18 +44,22 @@ class OpenRouterClient {
 
       // Validate response structure
       const choice = response.data.choices?.[0];
-      if (!choice?.message?.content) {
+      if (!choice?.message) {
         return {
           success: false,
-          error: "Invalid API response: missing message content",
+          error: "Invalid API response: missing message",
         };
       }
 
+      // Check for tool calls (function calling)
+      const toolCalls = choice.message.tool_calls;
+
       return {
         success: true,
-        content: choice.message.content,
+        content: choice.message.content || "",
         model: response.data.model,
         usage: response.data.usage,
+        toolCalls: toolCalls || null,
       };
     } catch (error) {
       if (error.response) {
@@ -83,6 +94,59 @@ class OpenRouterClient {
         content: content,
       };
     });
+  }
+
+  /**
+   * Convert Gemini function declarations to OpenRouter tools format
+   * @param {Array} geminiTools - Gemini tool definitions
+   * @returns {Array} OpenRouter tools format
+   */
+  convertGeminiTools(geminiTools) {
+    if (!geminiTools || geminiTools.length === 0) return [];
+
+    const tools = [];
+
+    for (const toolGroup of geminiTools) {
+      if (toolGroup.functionDeclarations) {
+        for (const func of toolGroup.functionDeclarations) {
+          tools.push({
+            type: "function",
+            function: {
+              name: func.name,
+              description: func.description,
+              parameters: this._convertGeminiParameters(func.parameters),
+            },
+          });
+        }
+      }
+    }
+
+    return tools;
+  }
+
+  /**
+   * Convert Gemini parameter format to OpenRouter/OpenAI format
+   * @private
+   */
+  _convertGeminiParameters(params) {
+    if (!params) return {};
+
+    const converted = {
+      type: "object",
+      properties: {},
+      required: params.required || [],
+    };
+
+    if (params.properties) {
+      for (const [key, value] of Object.entries(params.properties)) {
+        converted.properties[key] = {
+          type: value.type?.toLowerCase() || "string",
+          description: value.description,
+        };
+      }
+    }
+
+    return converted;
   }
 
   /**

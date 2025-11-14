@@ -86,26 +86,19 @@ const History = () => {
   };
 
   return (
-    <div
-      className="h-[calc(100vh-4rem)] flex"
-      style={{ backgroundColor: "#1a1d20" }}
-    >
+    <div className="h-[calc(100vh-4rem)] flex bg-gray-50 dark:bg-[#1a1d20]">
       {/* Conversations list */}
       <div
-        className={`${showDetail ? "hidden" : "flex"} lg:flex lg:w-80 xl:w-96 w-full flex-col border-r border-gray-800`}
-        style={{ backgroundColor: "#1a1d20" }}
+        className={`${showDetail ? "hidden" : "flex"} lg:flex lg:w-80 xl:w-96 w-full flex-col border-r border-gray-300 dark:border-gray-800`}
       >
-        <div
-          className="p-4 sm:p-6 border-b border-gray-800"
-          style={{ backgroundColor: "#1a1d20" }}
-        >
+        <div className="p-4 sm:p-6 border-b border-gray-300 dark:border-gray-800">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg sm:text-xl font-bold text-white">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
               Conversations
             </h2>
             <button
               onClick={handleClean}
-              className="p-2 text-gray-400 hover:text-red-400 rounded-lg hover:bg-gray-800 transition-all"
+              className="p-2 text-gray-400 hover:text-red-400 rounded-lg hover:bg-white dark:bg-gray-800 transition-all"
               title="Clean old conversations"
             >
               <TrashIcon className="w-5 h-5" />
@@ -142,11 +135,11 @@ const History = () => {
                   onClick={() => loadConversation(conv.id)}
                   className={`w-full text-left p-3 sm:p-4 rounded-xl transition-all ${
                     selectedConversation?.id === conv.id
-                      ? "bg-gray-800 border-2 border-gray-700"
-                      : "bg-gray-900 hover:bg-gray-800 border border-gray-800"
+                      ? "bg-blue-50 dark:bg-gray-800 border-2 border-blue-500 dark:border-gray-700"
+                      : "bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-800"
                   }`}
                 >
-                  <div className="font-medium text-sm text-gray-100 mb-1 line-clamp-2">
+                  <div className="font-medium text-sm text-gray-900 dark:text-gray-100 mb-1 line-clamp-2">
                     {conv.firstUserMessage ||
                       conv.title ||
                       `Conversation ${conv.id}`}
@@ -156,7 +149,7 @@ const History = () => {
                       {formatDate(conv.startedAt)}
                     </div>
                     {conv.messageCount && (
-                      <div className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full font-medium">
+                      <div className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-medium">
                         {conv.messageCount} msgs
                       </div>
                     )}
@@ -171,24 +164,20 @@ const History = () => {
       {/* Conversation detail */}
       <div
         className={`${showDetail ? "flex" : "hidden"} lg:flex flex-1 flex-col`}
-        style={{ backgroundColor: "#1a1d20" }}
       >
         {selectedConversation ? (
           <>
-            <div
-              className="border-b border-gray-800 px-4 sm:px-6 lg:px-8 py-4 sm:py-6"
-              style={{ backgroundColor: "#1a1d20" }}
-            >
+            <div className="border-b border-gray-300 dark:border-gray-800 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
               <div className="flex items-center justify-between max-w-5xl mx-auto">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <button
                     onClick={() => setShowDetail(false)}
-                    className="lg:hidden p-2 text-gray-400 hover:text-gray-200 rounded-lg hover:bg-gray-800 flex-shrink-0"
+                    className="lg:hidden p-2 text-gray-400 hover:text-gray-200 rounded-lg hover:bg-white dark:bg-gray-800 flex-shrink-0"
                   >
                     <ChevronLeftIcon className="w-5 h-5" />
                   </button>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-base sm:text-xl font-bold text-white mb-1 truncate">
+                    <h3 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white mb-1 truncate">
                       {selectedConversation.firstUserMessage ||
                         selectedConversation.title ||
                         "Conversation Details"}
@@ -229,14 +218,14 @@ const History = () => {
                       className={`p-4 sm:p-5 rounded-xl sm:rounded-2xl ${
                         message.role === "user"
                           ? "bg-blue-600 border border-blue-500"
-                          : "bg-gray-800 border border-gray-700"
+                          : "bg-white dark:bg-gray-800 border border-gray-700"
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-2">
                         <div
                           className={`text-xs font-bold uppercase tracking-wider ${
                             message.role === "user"
-                              ? "text-blue-200"
+                              ? "text-white"
                               : "text-gray-400"
                           }`}
                         >
@@ -247,7 +236,7 @@ const History = () => {
                         className={`whitespace-pre-wrap leading-relaxed text-sm sm:text-base ${
                           message.role === "user"
                             ? "text-white"
-                            : "text-gray-100"
+                            : "text-gray-900 dark:text-gray-100"
                         }`}
                       >
                         {message.content}
@@ -265,10 +254,10 @@ const History = () => {
         ) : (
           <div className="flex items-center justify-center h-full px-4">
             <div className="text-center max-w-md">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 rounded-2xl bg-gray-800 flex items-center justify-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center">
                 <ClockIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
               </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 No conversation selected
               </h3>
               <p className="text-sm sm:text-base text-gray-400">
