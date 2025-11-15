@@ -159,6 +159,16 @@ export const historyAPI = {
     return response.data;
   },
 
+  delete: async id => {
+    const response = await api.delete(`/api/history/${id}`);
+    return response.data;
+  },
+
+  deleteAll: async () => {
+    const response = await api.delete("/api/history/all");
+    return response.data;
+  },
+
   clean: async () => {
     const response = await api.delete("/api/history/clean");
     return response.data;

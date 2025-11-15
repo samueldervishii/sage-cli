@@ -31,6 +31,12 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
 
   // Streaming effect for AI responses
   useEffect(() => {
+    console.log("[Streaming] Effect triggered", {
+      messagesLength: messages.length,
+      streamingMessageIndex,
+      lastMessage: messages[messages.length - 1],
+    });
+
     // Clean up any existing interval
     if (streamingIntervalRef.current) {
       clearInterval(streamingIntervalRef.current);
@@ -44,6 +50,11 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
       lastMessage.role === "assistant" &&
       streamingMessageIndex !== messages.length - 1
     ) {
+      console.log("[Streaming] Starting stream for message", {
+        index: messages.length - 1,
+        content: lastMessage.content,
+      });
+
       // Start streaming animation
       setStreamingMessageIndex(messages.length - 1);
       setStreamingText("");
@@ -74,7 +85,7 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
         clearInterval(streamingIntervalRef.current);
       }
     };
-  }, [messages, streamingMessageIndex]);
+  }, [messages]); // Only depend on messages, not streamingMessageIndex
 
   // useEffect(() => {
   //   if (textareaRef.current) {
@@ -143,6 +154,9 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
     try {
       const response = await chatAPI.send(input);
 
+      console.log("[ChatPlayground] Received response:", response);
+      console.log("[ChatPlayground] Reply field:", response.reply);
+
       const assistantMessage = {
         role: "assistant",
         content:
@@ -151,6 +165,8 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
           response.message ||
           "No response",
       };
+
+      console.log("[ChatPlayground] Assistant message:", assistantMessage);
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Error sending message:", error);

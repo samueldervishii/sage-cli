@@ -1,223 +1,200 @@
-# Sage CLI
+# Sage
 
-An intelligent command-line AI assistant powered by Google Gemini with memory, file operations, automatic fallback support, and **REST API**.
+An intelligent AI assistant platform with a REST API backend and interactive web playground, powered by Google Gemini and DeepSeek.
 
 > **Disclaimer:** This project is NOT affiliated with, endorsed by, or connected to Sage Group plc or any of its products (Sage Intacct, Sage 50cloud, etc.). This is an independent open-source project.
 
 ## Features
 
-- **Interactive Chat** - REPL-style interface with conversation context
-- **REST API** - Use Sage as an API server for your applications
-- **Memory System** - Sage remembers your preferences across conversations
+- **Interactive Web Playground** - Modern React-based chat interface
+- **REST API Server** - Full-featured backend for custom integrations
+- **Memory System** - Remembers user preferences across conversations
 - **File Operations** - Read, write, and search files with AI assistance
-- **Web Search** - Real-time web search integration via Serper API
-- **Conversation History** - All conversations saved locally with export support
+- **Web Search** - Real-time web search integration via MCP protocol
+- **Conversation History** - All conversations saved to MongoDB with export support
 - **Resume Conversations** - Continue previous chats seamlessly
-- **Automatic Fallback** - Switches to OpenRouter (free DeepSeek) when Gemini rate limits
-- **Secure Storage** - Encrypted API keys and local-only data
-- **Tested** - Comprehensive test suite included
+- **Multiple AI Models** - Support for Google Gemini and DeepSeek via OpenRouter
+- **Secure Storage** - MongoDB-based data persistence
+
+## Architecture
+
+The project consists of two main components:
+
+- **Server** (`/server`) - Express.js REST API backend
+- **Playground** (`/playground`) - React + Vite web interface
 
 ## Quick Start
 
-### CLI Mode
+### Prerequisites
+
+- Node.js 18+ installed
+- MongoDB database (local or Atlas)
+- API keys for Gemini and/or OpenRouter
+
+### 1. Server Setup
 
 ```bash
-# Install
-npm install -g sage-cli
+cd server
 
-# First time setup
-sage setup
+# Install dependencies
+npm install
 
-# Start chatting
-sage
+# Create .env file from example
+cp .env.example .env
+
+# Edit .env with your configuration
+# Required: MONGODB_URI, GEMINI_API_KEY or OPENROUTER_API_KEY
 ```
 
-### API Mode
+**Environment Configuration** (server/.env):
 
 ```bash
-# Install
-npm install -g sage-cli
+# MongoDB (Required)
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/sage-db
 
-# First time setup
-sage setup
+# AI Model API Keys (at least one required)
+GEMINI_API_KEY=your_gemini_api_key_here
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 
-# Start API server (default port 3000)
-npm run api
-
-# Or specify custom port
-npm run api -- --port=8080
+# Optional Configuration
+PORT=3000
+CORS_ORIGIN=http://localhost:5173
+DEBUG=1
 ```
 
-## Usage
-
-### Basic Chat
+**Start the server:**
 
 ```bash
-sage
-> hello
-• Hi! How can I help you today?
+# Production mode
+npm start
 
-> remember that I like blueberries
-• I'll remember that!
-
-> what fruit should I eat?
-• Since you like blueberries, they would be a great choice!
-
-> .exit
+# Development mode (with debug logs)
+npm run dev
 ```
 
-### Commands
+Server runs on `http://localhost:3000` by default.
+
+### 2. Playground Setup
 
 ```bash
-# Chat
-sage                        # Start new chat
-sage --resume               # Resume previous conversation
+cd playground
 
-# Memory Management
-sage memory list            # List all memories
-sage memory search <query>  # Search memories
-sage memory stats           # Show memory statistics
-sage memory export          # Export to markdown
-sage memory clear           # Delete all memories
+# Install dependencies
+npm install
 
-# History
-sage history list           # List conversations
-sage history show <id>      # Show conversation
-sage history export <id>    # Export conversation
-sage history clean          # Delete all history
-sage history info           # Show storage info
-
-# System
-sage setup                  # Configure API keys
-sage update                 # Update to latest version
-sage --version              # Show version
+# Start development server
+npm run dev
 ```
+
+Playground runs on `http://localhost:5173` by default.
+
+### 3. Access the Application
+
+Open your browser to `http://localhost:5173` to use the web interface.
 
 ## Configuration
 
 ### Required API Keys
 
-**Gemini API** (Primary)
+**MongoDB** (Database)
+- Local: Install MongoDB locally or use Docker
+- Cloud: Get free cluster at https://www.mongodb.com/cloud/atlas
+- Add connection string to `.env` as `MONGODB_URI`
 
+**Gemini API** (Primary AI Model)
 - Get free key: https://makersuite.google.com/app/apikey
-- Add during `sage setup` or in `.env` as `GEMINI_API_KEY`
+- Add to `.env` as `GEMINI_API_KEY`
+- Default model: `gemini-2.0-flash-exp`
 
 ### Optional API Keys
 
-**OpenRouter** (Fallback when Gemini rate limits)
-
+**OpenRouter** (Alternative AI Models)
 - Get free key: https://openrouter.ai/keys
-- Add during setup or in `.env` as `OPENROUTER_API_KEY`
-- Uses free DeepSeek R1 70B model automatically
+- Add to `.env` as `OPENROUTER_API_KEY`
+- Default model: `deepseek/deepseek-r1-distill-llama-70b:free` (completely free!)
 
-**Serper** (Web Search)
-
+**Serper** (Web Search via MCP)
 - Get free key: https://serper.dev
-- Add during setup or in `.env` as `SERPER_API_KEY`
+- Add to `.env` as `SERPER_API_KEY`
+- If not provided, web search functionality will be disabled
 
-### Storage Locations
-
-```
-~/.sage-cli/
-├── config.json           # Encrypted API keys and preferences
-├── .key                  # Encryption key
-├── conversations/        # Conversation history
-└── memory/
-    └── memories.json     # User memories
-```
-
-## Memory System
-
-Sage can remember information about you across conversations:
+### Server Configuration Options
 
 ```bash
-# Store a memory
-> remember that I'm a developer working on a CLI tool
-• I'll remember that!
+# Server Settings
+PORT=3000                                    # API server port
+CORS_ORIGIN=http://localhost:5173            # CORS allowed origins
+NODE_ENV=development                         # Environment mode
+DEBUG=1                                      # Enable debug logging
 
-# Sage uses memories automatically
-> what should I build next?
-• Since you're working on a CLI tool, here are some ideas...
-
-# View memories
-sage memory list
+# AI Model Selection
+GEMINI_MODEL=gemini-2.0-flash-exp           # Gemini model
+OPENROUTER_MODEL=deepseek/deepseek-r1-distill-llama-70b:free  # OpenRouter model
 ```
 
-Memory is context-aware and works with both Gemini and OpenRouter fallback.
+## Using the Playground
 
-## File Operations
+The web playground provides a full-featured interface:
 
-Sage can interact with your filesystem:
+### Chat Interface
+- Send messages to AI assistants (Gemini or DeepSeek)
+- View streaming responses with typewriter effect
+- Automatic conversation saving to MongoDB
 
-```bash
-> read package.json
-# Shows file content
+### History Management
+- Browse all previous conversations
+- View conversation details and messages
+- Export conversations to markdown
+- Delete individual conversations
+- Delete all conversations with one click
 
-> search for *.test.js files
-# Lists test files
+### Memory Explorer
+- View all stored memories
+- Search through memories
+- See memory statistics
+- Delete individual or all memories
 
-> create a new file called hello.js with a hello world function
-# Creates the file (with confirmation)
+### Settings
+- Switch between AI models (Gemini/DeepSeek)
+- Configure model temperature
+- View server health status
+- Check API server information
+
+## API Documentation
+
+The REST API provides programmatic access to all features.
+
+### Base URL
+
+```
+http://localhost:3000
 ```
 
-**Security**: Sage blocks access to sensitive files (.env, SSH keys, etc.) and validates all paths.
+### Authentication
 
-## Conversation History
+The API uses session-based authentication:
+- Sessions are created automatically on first request
+- Include `X-Session-ID` header in subsequent requests
+- Sessions expire after 30 minutes of inactivity
 
-All conversations are automatically saved:
-
-```bash
-# List recent conversations
-sage history list
-
-# Resume a conversation
-sage --resume
-# (Select from list)
-
-# Export to markdown
-sage history export 2025-11-07-123456
-```
-
-Auto-cleanup: Keeps last 50 conversations or 30 days, whichever is more recent.
-
-## API Server
-
-Sage can be run as a REST API server for integration with web apps, mobile apps, or other services.
-
-### Starting the Server
-
-```bash
-# Production mode
-npm run api
-
-# Development mode (with debug logs)
-npm run api:dev
-
-# Custom port
-npm run api -- --port=8080
-```
-
-### API Endpoints
-
-#### Health Check
+### Health Check
 
 ```bash
 GET /health
 ```
 
 Response:
-
 ```json
 {
   "status": "healthy",
-  "version": "1.5.0",
-  "timestamp": "2025-11-08T19:54:40.907Z"
+  "version": "2025.11.1",
+  "timestamp": "2025-11-15T12:00:00.000Z"
 }
 ```
 
-#### Chat Endpoints
+### Chat Endpoints
 
-**Initialize Chat Session**
+#### Initialize Chat Session
 
 ```bash
 POST /api/chat/initialize
@@ -229,17 +206,16 @@ Content-Type: application/json
 ```
 
 Response:
-
 ```json
 {
   "success": true,
   "sessionId": "uuid-session-id",
   "resumed": false,
-  "conversationId": "2025-11-08-123456"
+  "conversationId": "conversation-id"
 }
 ```
 
-**Send Message**
+#### Send Message
 
 ```bash
 POST /api/chat/send
@@ -247,12 +223,12 @@ Content-Type: application/json
 X-Session-ID: your-session-id
 
 {
-  "message": "Hello, what can you help me with?"
+  "message": "Hello, what can you help me with?",
+  "model": "deepseek"
 }
 ```
 
 Response:
-
 ```json
 {
   "success": true,
@@ -263,35 +239,35 @@ Response:
 }
 ```
 
-**Get Chat Status**
+#### Get Chat Status
 
 ```bash
 GET /api/chat/status
 X-Session-ID: your-session-id
 ```
 
-**Clear Session**
+#### Clear Session
 
 ```bash
 DELETE /api/chat/session
 X-Session-ID: your-session-id
 ```
 
-#### Memory Endpoints
+### Memory Endpoints
 
-**List Memories**
+#### List Memories
 
 ```bash
 GET /api/memory/list?limit=50
 ```
 
-**Search Memories**
+#### Search Memories
 
 ```bash
 GET /api/memory/search?query=preferences
 ```
 
-**Add Memory**
+#### Add Memory
 
 ```bash
 POST /api/memory/add
@@ -303,83 +279,82 @@ Content-Type: application/json
 }
 ```
 
-**Get Statistics**
+#### Get Statistics
 
 ```bash
 GET /api/memory/stats
 ```
 
-**Clear All Memories**
+#### Delete Memory
+
+```bash
+DELETE /api/memory/:id
+```
+
+#### Clear All Memories
 
 ```bash
 DELETE /api/memory/clear
 ```
 
-#### History Endpoints
+### History Endpoints
 
-**List Conversations**
+#### List Conversations
 
 ```bash
 GET /api/history/list?limit=50
 ```
 
-**Get Conversation**
+#### Get Conversation
 
 ```bash
 GET /api/history/:id
 ```
 
-**Export Conversation**
+#### Export Conversation
 
 ```bash
 GET /api/history/:id/export
 ```
 
-**Get Storage Info**
+Returns conversation as markdown file.
+
+#### Search Conversations
+
+```bash
+GET /api/history/search?q=search-term&limit=50
+```
+
+#### Delete Conversation
+
+```bash
+DELETE /api/history/:id
+```
+
+#### Delete All Conversations
+
+```bash
+DELETE /api/history/all
+```
+
+#### Get Storage Info
 
 ```bash
 GET /api/history/info/storage
 ```
 
-**Delete All History**
+### API Features
 
-```bash
-DELETE /api/history/clean
-```
-
-### Session Management
-
-The API uses session-based state management:
-
-- Sessions are created automatically on first request
-- Include `X-Session-ID` header in subsequent requests
-- Sessions expire after 30 minutes of inactivity
-- Each session maintains its own chat context
-
-### Example: Using the API with cURL
-
-```bash
-# 1. Initialize a chat session
-curl -X POST http://localhost:3000/api/chat/initialize \
-  -H "Content-Type: application/json" \
-  -d '{}'
-
-# Response includes X-Session-ID header
-
-# 2. Send a message (use session ID from step 1)
-curl -X POST http://localhost:3000/api/chat/send \
-  -H "Content-Type: application/json" \
-  -H "X-Session-ID: your-session-id" \
-  -d '{"message": "What is Node.js?"}'
-
-# 3. Check memory stats
-curl http://localhost:3000/api/memory/stats
-```
+- **Rate Limiting** - 100 requests per 15 minutes per IP
+- **Session Management** - Automatic session creation and cleanup
+- **CORS Support** - Configurable cross-origin requests
+- **Error Handling** - Comprehensive error responses
+- **MongoDB Storage** - Persistent conversation and memory storage
 
 ### Example: Using the API with JavaScript
 
 ```javascript
-// Initialize chat
+// Initialize chat session
 const initResponse = await fetch("http://localhost:3000/api/chat/initialize", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -397,6 +372,7 @@ const chatResponse = await fetch("http://localhost:3000/api/chat/send", {
   },
   body: JSON.stringify({
     message: "Explain TypeScript in simple terms",
+    model: "deepseek"
   }),
 });
 
@@ -404,109 +380,152 @@ const data = await chatResponse.json();
 console.log(data.reply);
 ```
 
-### API Configuration
+### Example: Using the API with cURL
 
 ```bash
-# Environment variables
-PORT=3000                    # API server port
-CORS_ORIGIN=*                # CORS origin (default: *)
-DEBUG=1                      # Enable debug logging
+# 1. Initialize a chat session
+curl -X POST http://localhost:3000/api/chat/initialize \
+  -H "Content-Type: application/json" \
+  -d '{}' -i
 
-# Note: Scripts use cross-env for Windows compatibility
-# npm run api:dev works on all platforms
+# Extract X-Session-ID from response headers
+
+# 2. Send a message
+curl -X POST http://localhost:3000/api/chat/send \
+  -H "Content-Type: application/json" \
+  -H "X-Session-ID: your-session-id" \
+  -d '{"message": "What is Node.js?", "model": "gemini"}'
+
+# 3. Check memory stats
+curl http://localhost:3000/api/memory/stats
 ```
 
-### API Features
+## Memory System
 
-- **Rate Limiting** - 100 requests per 15 minutes per IP
-- **Session Management** - Automatic session creation and cleanup
-- **CORS Support** - Configurable cross-origin requests
-- **Error Handling** - Comprehensive error responses
-- **Same Core Logic** - Uses the same ChatService as CLI
+Sage can remember information across conversations:
 
-## Automatic Fallback
+- Automatically stores important information from conversations
+- Uses memories to provide context-aware responses
+- Search and manage memories through the Playground or API
+- Works with both Gemini and DeepSeek models
 
-When Gemini hits rate limits, Sage automatically switches to OpenRouter's free DeepSeek model:
+Example conversation:
+```
+User: Remember that I'm a developer working on a React application
+AI: I'll remember that!
 
-- **Silent fallback** - No disruption to user experience
-- **Memory support** - Memories work with both providers
-- **Free tier** - DeepSeek R1 Distill 70B is completely free
-- **Seamless** - You won't even notice the switch
-
-Set `DEBUG=1` to see fallback in action.
-
-## Testing
-
-```bash
-npm test                    # Run all tests
-npm run lint                # Check code quality
+[Later conversation]
+User: What should I learn next?
+AI: Since you're working on a React application, you might want to learn...
 ```
 
-Test coverage:
+## File Operations
 
-- ConfigManager (encryption, API keys, model config)
-- FileOperations (path validation, sensitive file blocking)
-- ConversationHistory (storage, export, cleanup)
+Sage can interact with your filesystem (when configured):
+
+- Read file contents
+- Search for files matching patterns
+- Create new files (with confirmation)
+- Secure path validation prevents directory traversal
+- Blocks access to sensitive files (.env, SSH keys, etc.)
 
 ## Development
 
+### Project Structure
+
+```
+sage-cli/
+├── server/                # Backend API server
+│   ├── src/
+│   │   ├── api/          # Express routes and middleware
+│   │   ├── services/     # Business logic (chat, memory, storage)
+│   │   └── utils/        # Utilities (OpenRouter client, search)
+│   ├── .env              # Environment configuration
+│   └── package.json
+├── playground/           # Frontend web app
+│   ├── src/
+│   │   ├── components/   # React components
+│   │   ├── pages/        # Page components
+│   │   ├── contexts/     # React contexts
+│   │   └── services/     # API client
+│   └── package.json
+└── README.md
+```
+
+### Running Tests
+
 ```bash
-# Clone
-git clone https://github.com/samueldervishii/sage-cli.git
-cd sage-cli
+# Server linting
+cd server
+npm run lint
+npm run lint:fix
 
-# Install dependencies
-npm install
+# Server formatting
+npm run format
+npm run format:check
 
-# Run locally
-node bin/sage.mjs
+# Playground linting
+cd playground
+npm run lint
+npm run lint:fix
 
-# Debug mode
-DEBUG=1 sage
+# Playground formatting
+npm run format
+npm run format:check
 ```
 
-## Configuration Options
-
-### Environment Variables
+### Building for Production
 
 ```bash
-# API Keys
-GEMINI_API_KEY=your-gemini-key
-OPENROUTER_API_KEY=your-openrouter-key  # Optional fallback
-SERPER_API_KEY=your-serper-key          # Optional web search
+# Build playground
+cd playground
+npm run build
 
-# Models
-GEMINI_MODEL=gemini-2.0-flash-exp       # Default
-OPENROUTER_MODEL=deepseek/deepseek-r1-distill-llama-70b:free  # Free!
+# Serve built files
+npm run preview
 
-# Debug
-DEBUG=1                                  # Show detailed logs
+# Server runs as-is (no build step)
+cd server
+npm start
 ```
 
-### Config File
+## Versioning
 
-Located at `~/.sage-cli/config.json`:
+This project uses **CalVer** (Calendar Versioning) with the format `YYYY.MM.MICRO`:
 
-```json
-{
-  "apiKeys": {
-    "gemini": "encrypted-key",
-    "openrouter": "encrypted-key",
-    "serper": "encrypted-key"
-  },
-  "preferences": {
-    "geminiModel": "gemini-2.0-flash-exp",
-    "openrouterModel": "deepseek/deepseek-r1-distill-llama-70b:free"
-  }
-}
-```
+- `YYYY` - Four-digit year
+- `MM` - Zero-padded month (01-12)
+- `MICRO` - Incremental patch number within the month
+
+Examples:
+- `2025.11.1` - First release in November 2025
+- `2025.11.2` - Second release in November 2025
+- `2025.12.1` - First release in December 2025
+
+Version is automatically updated by GitHub Actions workflow on each release.
 
 ## Security
 
-- **Encrypted API keys** - AES-256-CBC with random salt and IV
-- **Local storage only** - No cloud sync, all data stays on your machine
-- **Path validation** - Prevents directory traversal attacks
-- **Sensitive file blocking** - Protects .env, SSH keys, credentials
-- **Secure permissions** - Config files are 0600 (user read/write only)
+- **Environment Variables** - Sensitive keys stored in .env (never committed)
+- **MongoDB Storage** - Secure database with connection string authentication
+- **Path Validation** - Prevents directory traversal attacks
+- **Sensitive File Blocking** - Protects .env, SSH keys, credentials
+- **CORS Configuration** - Configurable cross-origin access
+- **Rate Limiting** - Prevents API abuse
 
-_Sage CLI - Your intelligent terminal companion_
+## License
+
+Apache License 2.0
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit pull requests or open issues.
+
+## Support
+
+For issues, questions, or feature requests, please open an issue on GitHub:
+https://github.com/samueldervishii/sage-cli/issues
+
+---
+
+_Sage - Your intelligent AI assistant platform_

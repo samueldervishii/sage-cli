@@ -1,0 +1,39 @@
+{
+  "name": "sage-server",
+  "version": "2025.11.1",
+  "description": "Sage AI Server - Backend API for Playground",
+  "type": "module",
+  "scripts": {
+    "start": "node ./src/index.mjs",
+    "dev": "cross-env DEBUG=1 node ./src/index.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{js,mjs,json}\"",
+    "format:check": "prettier --check \"src/**/*.{js,mjs,json}\""
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "fs-extra": "^11.3.2",
+    "glob": "^11.0.3",
+    "mongodb": "^7.0.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "eslint": "^9.39.1",
+    "prettier": "^3.4.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/samueldervishii/sage-cli.git"
+  }
+}

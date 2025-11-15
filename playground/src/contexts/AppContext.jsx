@@ -28,7 +28,19 @@ export const AppProvider = ({ children }) => {
 
   const [onNewChatCallback, setOnNewChatCallback] = useState(null);
 
+  const checkServerHealth = async () => {
+    try {
+      const data = await healthCheck();
+      setServerStatus("healthy");
+      setServerInfo(data);
+    } catch {
+      setServerStatus("error");
+      setServerInfo(null);
+    }
+  };
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     checkServerHealth();
     const interval = setInterval(checkServerHealth, 30000); // Check every 30s
     return () => clearInterval(interval);
@@ -48,17 +60,6 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed));
   }, [sidebarCollapsed]);
-
-  const checkServerHealth = async () => {
-    try {
-      const data = await healthCheck();
-      setServerStatus("healthy");
-      setServerInfo(data);
-    } catch (error) {
-      setServerStatus("error");
-      setServerInfo(null);
-    }
-  };
 
   const toggleDarkMode = () => {
     setDarkMode(prev => !prev);

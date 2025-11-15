@@ -57,16 +57,36 @@ const History = () => {
     }
   };
 
-  const handleClean = async () => {
-    if (!confirm("Are you sure you want to clean old conversations?")) return;
+  const handleDelete = async id => {
+    if (!confirm("Are you sure you want to delete this conversation?")) return;
 
     try {
-      await historyAPI.clean();
+      await historyAPI.delete(id);
+      loadHistory();
+      if (selectedConversation?.id === id) {
+        setSelectedConversation(null);
+        setShowDetail(false);
+      }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to delete ALL conversations? This action cannot be undone."
+      )
+    )
+      return;
+
+    try {
+      await historyAPI.deleteAll();
       loadHistory();
       setSelectedConversation(null);
       setShowDetail(false);
     } catch (error) {
-      console.error("Failed to clean history:", error);
+      console.error("Failed to delete all conversations:", error);
     }
   };
 
@@ -80,7 +100,7 @@ const History = () => {
         hour: "2-digit",
         minute: "2-digit",
       });
-    } catch (e) {
+    } catch {
       return "Unknown date";
     }
   };
@@ -97,9 +117,9 @@ const History = () => {
               Conversations
             </h2>
             <button
-              onClick={handleClean}
+              onClick={handleDeleteAll}
               className="p-2 text-gray-400 hover:text-red-400 rounded-lg hover:bg-white dark:bg-gray-800 transition-all"
-              title="Clean old conversations"
+              title="Delete all conversations"
             >
               <TrashIcon className="w-5 h-5" />
             </button>
@@ -189,22 +209,40 @@ const History = () => {
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() =>
-                    handleExport(
-                      selectedConversation?.id ||
-                        selectedConversation?.conversation?.id
-                    )
-                  }
-                  disabled={
-                    !selectedConversation?.id &&
-                    !selectedConversation?.conversation?.id
-                  }
-                  className="px-3 sm:px-5 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg sm:rounded-xl flex items-center gap-2 transition-all font-medium text-sm flex-shrink-0 ml-2"
-                >
-                  <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden sm:inline">Export</span>
-                </button>
+                <div className="flex gap-2 ml-2">
+                  <button
+                    onClick={() =>
+                      handleDelete(
+                        selectedConversation?.id ||
+                          selectedConversation?.conversation?.id
+                      )
+                    }
+                    disabled={
+                      !selectedConversation?.id &&
+                      !selectedConversation?.conversation?.id
+                    }
+                    className="px-3 sm:px-5 py-2 sm:py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg sm:rounded-xl flex items-center gap-2 transition-all font-medium text-sm flex-shrink-0"
+                  >
+                    <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">Delete</span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleExport(
+                        selectedConversation?.id ||
+                          selectedConversation?.conversation?.id
+                      )
+                    }
+                    disabled={
+                      !selectedConversation?.id &&
+                      !selectedConversation?.conversation?.id
+                    }
+                    className="px-3 sm:px-5 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg sm:rounded-xl flex items-center gap-2 transition-all font-medium text-sm flex-shrink-0"
+                  >
+                    <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">Export</span>
+                  </button>
+                </div>
               </div>
             </div>
 

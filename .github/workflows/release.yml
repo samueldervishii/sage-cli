@@ -24,18 +24,6 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run format check
-        run: npm run format:check
-
-      - name: Security audit
-        run: npm audit --audit-level moderate
-
-      - name: Check for vulnerabilities
-        run: npm audit --audit-level high --production
-
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
@@ -44,7 +32,7 @@ jobs:
       - name: Determine version bump
         id: version
         run: |
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          CURRENT_VERSION=$(node -p "require('./version.json').version")
           echo "Current version: $CURRENT_VERSION"
 
           # Get current year and month
@@ -80,10 +68,15 @@ jobs:
           echo "New version: $NEW_VERSION"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update version in package.json
+      - name: Update version in version.json
         run: |
-          npm version ${{ steps.version.outputs.new_version }} --no-git-tag-version
-          git add package.json
+          node -e "
+          const fs = require('fs');
+          const versionData = JSON.parse(fs.readFileSync('version.json', 'utf8'));
+          versionData.version = '${{ steps.version.outputs.new_version }}';
+          fs.writeFileSync('version.json', JSON.stringify(versionData, null, 2) + '\n', 'utf8');
+          "
+          git add version.json
           git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
 
       - name: Generate Release Notes
@@ -150,30 +143,50 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.new_version }}
-          name: Sage CLI v${{ steps.version.outputs.new_version }}
+          name: Sage AI v${{ steps.version.outputs.new_version }}
           body: |
-            ## Sage CLI v${{ steps.version.outputs.new_version }}
+            ## Sage AI v${{ steps.version.outputs.new_version }}
 
-            ### Installation
+            **Sage AI** is an intelligent chat platform with a Node.js backend server and React playground interface.
 
-            **Linux/macOS:**
+            ### Getting Started
+
+            **Clone the repository:**
             ```bash
-            bash -c "$(curl -fsSL https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.sh)"
+            git clone https://github.com/samueldervishii/sage-cli.git
+            cd sage-cli
             ```
 
-            **Windows (PowerShell):**
-            ```powershell
-            irm https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.ps1 | iex
+            **Run the server:**
+            ```bash
+            cd server
+            npm install
+            npm start
             ```
 
-            **Windows (Node.js):**
-            ```cmd
-            curl -o install.mjs https://raw.githubusercontent.com/samueldervishii/sage-cli/main/install.mjs && node install.mjs
+            **Run the playground:**
+            ```bash
+            cd playground
+            npm install
+            npm run dev
             ```
+
+            ### What's New
 
             ${{ steps.generate_notes.outputs.release-notes }}
 
-            ### Full Changelog
+            ### Documentation
+
+            - [API Documentation](https://github.com/samueldervishii/sage-cli/blob/main/POSTMAN_GUIDE.md)
+            - [README](https://github.com/samueldervishii/sage-cli/blob/main/README.md)
+
+            ### Components
+
+            - **Server**: Node.js Express API with AI chat, memory management, and MongoDB integration
+            - **Playground**: React-based web interface for interacting with the AI
+
+            ---
+
             **Full Changelog**: https://github.com/samueldervishii/sage-cli/commits/v${{ steps.version.outputs.new_version }}
           draft: false
           prerelease: false
