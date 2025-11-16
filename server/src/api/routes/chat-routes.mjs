@@ -1,20 +1,68 @@
 import express from "express";
 import ChatService from "../../services/chat-service.mjs";
+import {
+  cleanupExpiredSessions,
+  getSession,
+} from "../middleware/session-manager.mjs";
 
 const router = express.Router();
 
 // Store chat service instances per session
 const chatInstances = new Map();
 
+// Maximum number of chat instances (aligned with session limit)
+const MAX_CHAT_INSTANCES = 10000;
+
 /**
  * Get or create chat service for session
  */
 function getChatService(sessionId) {
   if (!chatInstances.has(sessionId)) {
+    // Clean up if at capacity
+    if (chatInstances.size >= MAX_CHAT_INSTANCES) {
+      cleanupInactiveChatInstances();
+    }
+
     chatInstances.set(sessionId, new ChatService());
   }
   return chatInstances.get(sessionId);
 }
+
+/**
+ * Clean up chat instances for expired sessions
+ */
+function cleanupInactiveChatInstances() {
+  const now = Date.now();
+  let cleanedCount = 0;
+
+  for (const [sessionId] of chatInstances.entries()) {
+    const session = getSession(sessionId);
+
+    // Remove if session doesn't exist or is expired (30 min)
+    if (!session || now - session.lastAccess > 30 * 60 * 1000) {
+      chatInstances.delete(sessionId);
+      cleanedCount++;
+    }
+  }
+
+  if (cleanedCount > 0) {
+    console.log(
+      `[ChatRoutes] Cleaned up ${cleanedCount} inactive chat instances`
+    );
+  }
+
+  return cleanedCount;
+}
+
+/**
+ * Delete chat instance for specific session
+ */
+function deleteChatInstance(sessionId) {
+  return chatInstances.delete(sessionId);
+}
+
+// Run cleanup every 10 minutes
+setInterval(cleanupInactiveChatInstances, 10 * 60 * 1000);
 
 /**
  * POST /api/chat/initialize

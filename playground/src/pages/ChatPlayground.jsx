@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { chatAPI } from "../services/api";
 import { useApp } from "../contexts/AppContext";
+import { useToast } from "../contexts/ToastContext";
 import {
   PaperAirplaneIcon,
   SparklesIcon,
@@ -11,6 +12,7 @@ import remarkGfm from "remark-gfm";
 
 const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
   const { setOnNewChatCallback } = useApp();
+  const toast = useToast();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -108,13 +110,10 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
         }
       } catch (error) {
         console.error("Failed to initialize session:", error);
-        // Show error to user
-        setMessages([
-          {
-            role: "error",
-            content: `Failed to initialize session: ${error.message}. Please refresh the page.`,
-          },
-        ]);
+        // Show error toast to user
+        toast.error(
+          `Failed to initialize session: ${error.message}. Please refresh the page.`
+        );
       }
     };
     initSession();
@@ -182,11 +181,8 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
         errorMsg = error.message;
       }
 
-      const errorMessage = {
-        role: "error",
-        content: `Error: ${errorMsg}`,
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      // Show error toast
+      toast.error(`Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -260,9 +256,7 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
                     className={`rounded-2xl px-3 py-2 sm:px-5 sm:py-3 ${
                       message.role === "user"
                         ? "bg-blue-600 text-white"
-                        : message.role === "error"
-                          ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800"
-                          : "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
+                        : "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                     }`}
                   >
                     <div className="prose prose-sm sm:prose-base max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-sm">

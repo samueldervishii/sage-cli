@@ -1,5 +1,6 @@
 import express from "express";
 import memoryStorage from "../../services/memory-storage.mjs";
+import cache from "../../utils/cache.mjs";
 
 const router = express.Router();
 
@@ -11,11 +12,21 @@ router.get("/list", async (req, res, next) => {
   try {
     const { limit = 100, skip = 0, category = null } = req.query;
 
-    const memories = await memoryStorage.listMemories({
-      limit: parseInt(limit),
-      skip: parseInt(skip),
-      category,
-    });
+    // Create cache key based on query parameters
+    const cacheKey = `memories:list:${limit}:${skip}:${category || "all"}`;
+
+    // Use cache with 30 second TTL for frequently accessed lists
+    const memories = await cache.getOrSet(
+      cacheKey,
+      async () => {
+        return await memoryStorage.listMemories({
+          limit: parseInt(limit),
+          skip: parseInt(skip),
+          category,
+        });
+      },
+      30 * 1000 // 30 seconds TTL
+    );
 
     res.json({
       success: true,
@@ -72,6 +83,15 @@ router.post("/add", async (req, res, next) => {
 
     const memory = await memoryStorage.addMemory(content, category);
 
+    // Invalidate all memory-related caches
+    cache.delete("memories:stats");
+    // Clear all list caches (they start with "memories:list:")
+    for (const [key] of cache.cache.entries()) {
+      if (key.startsWith("memories:list:")) {
+        cache.delete(key);
+      }
+    }
+
     res.json({
       success: true,
       message: "Memory added successfully",
@@ -88,7 +108,14 @@ router.post("/add", async (req, res, next) => {
  */
 router.get("/stats", async (req, res, next) => {
   try {
-    const stats = await memoryStorage.getStatistics();
+    // Cache stats for 60 seconds
+    const stats = await cache.getOrSet(
+      "memories:stats",
+      async () => {
+        return await memoryStorage.getStatistics();
+      },
+      60 * 1000 // 60 seconds TTL
+    );
 
     res.json({
       success: true,
@@ -106,6 +133,9 @@ router.get("/stats", async (req, res, next) => {
 router.delete("/clear", async (req, res, next) => {
   try {
     const count = await memoryStorage.clearAllMemories();
+
+    // Clear all memory-related caches
+    cache.clear();
 
     res.json({
       success: true,
@@ -161,6 +191,14 @@ router.put("/:id", async (req, res, next) => {
       });
     }
 
+    // Invalidate memory caches
+    cache.delete("memories:stats");
+    for (const [key] of cache.cache.entries()) {
+      if (key.startsWith("memories:list:")) {
+        cache.delete(key);
+      }
+    }
+
     res.json({
       success: true,
       message: "Memory updated successfully",
@@ -186,6 +224,14 @@ router.delete("/:id", async (req, res, next) => {
         error: "Not Found",
         message: `Memory ${id} not found`,
       });
+    }
+
+    // Invalidate memory caches
+    cache.delete("memories:stats");
+    for (const [key] of cache.cache.entries()) {
+      if (key.startsWith("memories:list:")) {
+        cache.delete(key);
+      }
     }
 
     res.json({

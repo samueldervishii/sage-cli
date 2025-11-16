@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { chatAPI } from "../services/api";
 import { useApp } from "../contexts/AppContext";
+import { useToast } from "../contexts/ToastContext";
 import { SunIcon, MoonIcon } from "@heroicons/react/24/outline";
 
 const SettingsSidebarContent = ({ onConfigUpdate }) => {
   const { darkMode, toggleDarkMode } = useApp();
+  const toast = useToast();
   const [config, setConfig] = useState({
     selectedModel: "gemini",
     temperature: 1.0,
@@ -15,8 +17,6 @@ const SettingsSidebarContent = ({ onConfigUpdate }) => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
 
   // Load configuration on mount
   useEffect(() => {
@@ -26,7 +26,6 @@ const SettingsSidebarContent = ({ onConfigUpdate }) => {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      setError(null);
       const response = await chatAPI.getConfig();
       if (response.success && response.config) {
         setConfig({
@@ -41,7 +40,7 @@ const SettingsSidebarContent = ({ onConfigUpdate }) => {
     } catch (err) {
       // If no session yet, keep current defaults
       if (err.response?.status !== 404) {
-        setError("Failed to load configuration");
+        toast.error("Failed to load configuration");
       }
     } finally {
       setLoading(false);
@@ -51,24 +50,21 @@ const SettingsSidebarContent = ({ onConfigUpdate }) => {
   const handleUpdate = async () => {
     try {
       setLoading(true);
-      setError(null);
-      setSuccess(false);
 
       const response = await chatAPI.updateConfig(config);
 
       if (response.success) {
-        setSuccess(true);
+        toast.success("Configuration updated successfully!");
         // Notify parent component about the update
         if (onConfigUpdate) {
           onConfigUpdate(response.config);
         }
-        setTimeout(() => setSuccess(false), 2000);
       }
     } catch (err) {
       if (err.response?.data?.errors) {
-        setError(err.response.data.errors.join(", "));
+        toast.error(err.response.data.errors.join(", "));
       } else {
-        setError(
+        toast.error(
           err.response?.data?.message || "Failed to update configuration"
         );
       }
@@ -79,8 +75,6 @@ const SettingsSidebarContent = ({ onConfigUpdate }) => {
 
   const handleSliderChange = (key, value) => {
     setConfig(prev => ({ ...prev, [key]: parseFloat(value) }));
-    setError(null);
-    setSuccess(false);
   };
 
   return (
@@ -94,18 +88,6 @@ const SettingsSidebarContent = ({ onConfigUpdate }) => {
           Configure AI model and parameters
         </p>
       </div>
-
-      {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-900/50 rounded-lg text-red-700 dark:text-red-300 text-xs">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-900/50 rounded-lg text-green-700 dark:text-green-300 text-xs">
-          Configuration updated!
-        </div>
-      )}
 
       {/* Appearance */}
       <div className="space-y-3">

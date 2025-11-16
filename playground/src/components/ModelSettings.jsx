@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { chatAPI } from "../services/api";
+import { useToast } from "../contexts/ToastContext";
 
 const ModelSettings = ({ isOpen, onClose, onConfigUpdate }) => {
+  const toast = useToast();
   const [config, setConfig] = useState({
     selectedModel: "gemini",
     temperature: 1.0,
@@ -12,8 +14,6 @@ const ModelSettings = ({ isOpen, onClose, onConfigUpdate }) => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
 
   // Load current configuration when panel opens
   useEffect(() => {
@@ -25,7 +25,6 @@ const ModelSettings = ({ isOpen, onClose, onConfigUpdate }) => {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      setError(null);
       const response = await chatAPI.getConfig();
       if (response.success && response.config) {
         setConfig({
@@ -40,7 +39,7 @@ const ModelSettings = ({ isOpen, onClose, onConfigUpdate }) => {
     } catch (err) {
       // If no session yet, keep current defaults
       if (err.response?.status !== 404) {
-        setError("Failed to load configuration");
+        toast.error("Failed to load configuration");
       }
     } finally {
       setLoading(false);
@@ -50,28 +49,25 @@ const ModelSettings = ({ isOpen, onClose, onConfigUpdate }) => {
   const handleUpdate = async () => {
     try {
       setLoading(true);
-      setError(null);
-      setSuccess(false);
 
       const response = await chatAPI.updateConfig(config);
 
       if (response.success) {
-        setSuccess(true);
+        toast.success("Configuration updated successfully!");
         // Notify parent component about the update
         if (onConfigUpdate) {
           onConfigUpdate(response.config);
         }
         // Close modal after showing success message
         setTimeout(() => {
-          setSuccess(false);
           onClose();
         }, 800);
       }
     } catch (err) {
       if (err.response?.data?.errors) {
-        setError(err.response.data.errors.join(", "));
+        toast.error(err.response.data.errors.join(", "));
       } else {
-        setError(
+        toast.error(
           err.response?.data?.message || "Failed to update configuration"
         );
       }
@@ -83,26 +79,25 @@ const ModelSettings = ({ isOpen, onClose, onConfigUpdate }) => {
   const handleReset = async () => {
     try {
       setLoading(true);
-      setError(null);
-      setSuccess(false);
 
       const response = await chatAPI.resetConfig();
 
       if (response.success) {
         setConfig(response.config);
-        setSuccess(true);
+        toast.success("Configuration reset to defaults!");
         // Notify parent component about the reset
         if (onConfigUpdate) {
           onConfigUpdate(response.config);
         }
         // Close modal after showing success message
         setTimeout(() => {
-          setSuccess(false);
           onClose();
         }, 800);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to reset configuration");
+      toast.error(
+        err.response?.data?.message || "Failed to reset configuration"
+      );
     } finally {
       setLoading(false);
     }
@@ -110,8 +105,6 @@ const ModelSettings = ({ isOpen, onClose, onConfigUpdate }) => {
 
   const handleSliderChange = (key, value) => {
     setConfig(prev => ({ ...prev, [key]: parseFloat(value) }));
-    setError(null);
-    setSuccess(false);
   };
 
   if (!isOpen) return null;
@@ -155,18 +148,6 @@ const ModelSettings = ({ isOpen, onClose, onConfigUpdate }) => {
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          {error && (
-            <div className="p-3 bg-red-900/20 border border-red-900/50 rounded-lg text-red-300 text-sm">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="p-3 bg-green-900/20 border border-green-900/50 rounded-lg text-green-300 text-sm">
-              Configuration updated successfully!
-            </div>
-          )}
-
           {/* Model Selection */}
           <div className="space-y-3 pb-6 border-b border-gray-800">
             <div>

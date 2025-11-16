@@ -47,26 +47,21 @@ class MemoryStorage {
       throw new Error("memoryId must be a string");
     }
 
-    const memory = await this.collection.findOne(
+    // Use findOneAndUpdate to combine read + update in single operation
+    // This eliminates the N+1 query problem (2 DB calls -> 1 DB call)
+    const result = await this.collection.findOneAndUpdate(
       { id: { $eq: memoryId } },
-      { projection: { _id: 0 } }
+      {
+        $inc: { accessCount: 1 },
+        $set: { lastAccessed: new Date().toISOString() },
+      },
+      {
+        returnDocument: "after", // Return the updated document
+        projection: { _id: 0 },
+      }
     );
 
-    if (memory) {
-      // Update access count and last accessed time
-      await this.collection.updateOne(
-        { id: { $eq: memoryId } },
-        {
-          $inc: { accessCount: 1 },
-          $set: { lastAccessed: new Date().toISOString() },
-        }
-      );
-
-      memory.accessCount += 1;
-      memory.lastAccessed = new Date().toISOString();
-    }
-
-    return memory;
+    return result?.value || null;
   }
 
   /**

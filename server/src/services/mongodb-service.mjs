@@ -24,8 +24,23 @@ class MongoDBService {
       }
 
       this.client = new MongoClient(uri, {
+        // Connection timeouts
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
+        connectTimeoutMS: 10000,
+
+        // Connection pool configuration (performance optimization)
+        maxPoolSize: 50, // Maximum number of connections in the pool
+        minPoolSize: 5, // Minimum number of connections to maintain
+        maxIdleTimeMS: 60000, // Close connections idle for 60 seconds
+        waitQueueTimeoutMS: 10000, // Max time to wait for connection from pool
+
+        // Reliability settings
+        retryWrites: true, // Automatically retry write operations
+        retryReads: true, // Automatically retry read operations
+
+        // Compression (reduce network bandwidth)
+        compressors: ["snappy", "zlib"],
       });
 
       await this.client.connect();

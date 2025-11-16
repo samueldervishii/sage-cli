@@ -104,22 +104,44 @@ class ConversationStorage {
     const sanitizedLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 100);
     const sanitizedSkip = Math.max(parseInt(skip) || 0, 0);
 
-    const query = includeDeleted ? {} : { deleted: false };
+    const matchStage = includeDeleted ? {} : { deleted: false };
 
+    // Use aggregation pipeline for better performance
+    // Computes fields in MongoDB instead of JavaScript
     const conversations = await this.collection
-      .find(query, { projection: { _id: 0 } })
-      .sort({ lastMessageAt: -1 })
-      .skip(sanitizedSkip)
-      .limit(sanitizedLimit)
+      .aggregate([
+        { $match: matchStage },
+        { $sort: { lastMessageAt: -1 } },
+        { $skip: sanitizedSkip },
+        { $limit: sanitizedLimit },
+        {
+          $addFields: {
+            messageCount: { $size: { $ifNull: ["$messages", []] } },
+            firstUserMessage: {
+              $let: {
+                vars: {
+                  userMsg: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: { $ifNull: ["$messages", []] },
+                          cond: { $eq: ["$$this.role", "user"] },
+                        },
+                      },
+                      0,
+                    ],
+                  },
+                },
+                in: "$$userMsg.content",
+              },
+            },
+          },
+        },
+        { $project: { _id: 0 } },
+      ])
       .toArray();
 
-    // Add computed fields
-    return conversations.map(conv => ({
-      ...conv,
-      messageCount: conv.messages?.length || 0,
-      firstUserMessage:
-        conv.messages?.find(m => m.role === "user")?.content || null,
-    }));
+    return conversations;
   }
 
   /**

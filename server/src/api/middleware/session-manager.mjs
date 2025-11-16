@@ -11,16 +11,57 @@ const sessions = new Map();
 // Session timeout (30 minutes)
 const SESSION_TIMEOUT = 30 * 60 * 1000;
 
+// Maximum number of concurrent sessions (prevent memory exhaustion)
+const MAX_SESSIONS = 10000;
+
 /**
  * Clean up expired sessions
+ * Returns array of deleted session IDs for cleanup in other services
  */
 function cleanupExpiredSessions() {
   const now = Date.now();
+  const deletedSessions = [];
+
   for (const [sessionId, session] of sessions.entries()) {
     if (now - session.lastAccess > SESSION_TIMEOUT) {
       sessions.delete(sessionId);
+      deletedSessions.push(sessionId);
     }
   }
+
+  if (deletedSessions.length > 0) {
+    console.log(
+      `[SessionManager] Cleaned up ${deletedSessions.length} expired sessions`
+    );
+  }
+
+  return deletedSessions;
+}
+
+/**
+ * Evict least recently used session if at capacity
+ */
+function evictLRUIfNeeded() {
+  if (sessions.size >= MAX_SESSIONS) {
+    let oldestSessionId = null;
+    let oldestAccessTime = Date.now();
+
+    for (const [sessionId, session] of sessions.entries()) {
+      if (session.lastAccess < oldestAccessTime) {
+        oldestAccessTime = session.lastAccess;
+        oldestSessionId = sessionId;
+      }
+    }
+
+    if (oldestSessionId) {
+      sessions.delete(oldestSessionId);
+      console.log(
+        `[SessionManager] Evicted LRU session (at capacity: ${MAX_SESSIONS})`
+      );
+      return oldestSessionId;
+    }
+  }
+  return null;
 }
 
 // Run cleanup every 5 minutes
@@ -34,6 +75,9 @@ export function sessionManager(req, res, next) {
   let sessionId = req.headers["x-session-id"];
 
   if (!sessionId || !sessions.has(sessionId)) {
+    // Evict LRU session if at capacity
+    evictLRUIfNeeded();
+
     sessionId = uuidv4();
     sessions.set(sessionId, {
       id: sessionId,
@@ -77,3 +121,8 @@ export function deleteSession(sessionId) {
 export function getActiveSessionsCount() {
   return sessions.size;
 }
+
+/**
+ * Export cleanup function for other services to trigger
+ */
+export { cleanupExpiredSessions };

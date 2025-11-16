@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { AppProvider } from "./contexts/AppContext";
+import { ToastProvider } from "./contexts/ToastContext";
 import Layout from "./components/Layout";
+import ToastContainer from "./components/ToastContainer";
 import ChatPlayground from "./pages/ChatPlayground";
 import MemoryExplorer from "./pages/MemoryExplorer";
 import History from "./pages/History";
@@ -50,16 +52,19 @@ function App() {
 
   return (
     <AppProvider>
-      <Layout
-        currentView={currentView}
-        onViewChange={setCurrentView}
-        currentModel={currentView === "chat" ? currentModel : null}
-        settingsOpen={settingsOpen}
-        onSettingsToggle={() => setSettingsOpen(!settingsOpen)}
-        settingsSidebar={renderSettingsSidebar()}
-      >
-        {renderView()}
-      </Layout>
+      <ToastProvider>
+        <ToastContainer />
+        <Layout
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          currentModel={currentView === "chat" ? currentModel : null}
+          settingsOpen={settingsOpen}
+          onSettingsToggle={() => setSettingsOpen(!settingsOpen)}
+          settingsSidebar={renderSettingsSidebar()}
+        >
+          {renderView()}
+        </Layout>
+      </ToastProvider>
     </AppProvider>
   );
 }
