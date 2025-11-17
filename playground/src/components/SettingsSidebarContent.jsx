@@ -3,6 +3,7 @@ import { chatAPI } from "../services/api";
 import { useApp } from "../contexts/AppContext";
 import { useToast } from "../contexts/ToastContext";
 import { SunIcon, MoonIcon } from "@heroicons/react/24/outline";
+import { AI_MODELS } from "../config/models";
 
 const SettingsSidebarContent = ({ onConfigUpdate }) => {
   const { darkMode, toggleDarkMode } = useApp();
@@ -20,32 +21,39 @@ const SettingsSidebarContent = ({ onConfigUpdate }) => {
 
   // Load configuration on mount
   useEffect(() => {
+    let mounted = true;
+    const loadConfig = async () => {
+      try {
+        setLoading(true);
+        const response = await chatAPI.getConfig();
+        if (mounted && response.success && response.config) {
+          setConfig({
+            selectedModel: response.config.selectedModel || "gemini",
+            temperature: response.config.temperature || 1.0,
+            maxOutputTokens: response.config.maxOutputTokens || 8192,
+            topP: response.config.topP || 0.95,
+            topK: response.config.topK || 40,
+            memoryMode: response.config.memoryMode || "active",
+          });
+        }
+      } catch (err) {
+        // If no session yet, keep current defaults
+        // Only show error if it's not a 404 and component is still mounted
+        if (mounted && err.response?.status !== 404) {
+          toast.error("Failed to load configuration");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
     loadConfig();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const loadConfig = async () => {
-    try {
-      setLoading(true);
-      const response = await chatAPI.getConfig();
-      if (response.success && response.config) {
-        setConfig({
-          selectedModel: response.config.selectedModel || "gemini",
-          temperature: response.config.temperature || 1.0,
-          maxOutputTokens: response.config.maxOutputTokens || 8192,
-          topP: response.config.topP || 0.95,
-          topK: response.config.topK || 40,
-          memoryMode: response.config.memoryMode || "active",
-        });
-      }
-    } catch (err) {
-      // If no session yet, keep current defaults
-      if (err.response?.status !== 404) {
-        toast.error("Failed to load configuration");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleUpdate = async () => {
     try {
@@ -134,89 +142,66 @@ const SettingsSidebarContent = ({ onConfigUpdate }) => {
             AI Model
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-500 mb-3">
-            Choose your primary AI model
+            Choose your primary AI model - all models are free
           </p>
         </div>
-        <div className="space-y-2">
-          <button
-            onClick={() =>
-              setConfig(prev => ({ ...prev, selectedModel: "gemini" }))
-            }
-            className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-              config.selectedModel === "gemini"
-                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                : "border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-400 dark:hover:border-gray-600"
-            }`}
-            disabled={loading}
-          >
-            <div className="flex items-start justify-between mb-1">
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white text-xs mb-0.5">
-                  Gemini 2.0 Flash
-                </h4>
-                <p className="text-[10px] text-gray-500 dark:text-gray-500">
-                  gemini-2.0-flash-exp
+        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+          {AI_MODELS.map(model => (
+            <button
+              key={model.id}
+              onClick={() =>
+                setConfig(prev => ({ ...prev, selectedModel: model.id }))
+              }
+              className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                config.selectedModel === model.id
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                  : "border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-400 dark:hover:border-gray-600"
+              }`}
+              disabled={loading}
+            >
+              <div className="flex items-start justify-between mb-1">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-gray-900 dark:text-white text-xs mb-0.5">
+                      {model.name}
+                    </h4>
+                    {model.recommended && (
+                      <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[9px] rounded font-medium">
+                        RECOMMENDED
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-500">
+                    {model.provider} • {model.modelId.split("/").pop()}
+                  </p>
+                </div>
+                {config.selectedModel === model.id && (
+                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-0.5 flex-shrink-0"></div>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-600 dark:text-gray-400 mb-1.5">
+                {model.description}
+              </p>
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {model.features.map((feature, idx) => (
+                  <span
+                    key={idx}
+                    className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[9px] rounded"
+                  >
+                    {feature}
+                  </span>
+                ))}
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-gray-600 dark:text-gray-400">
+                  • Context: {model.contextWindow}
+                </p>
+                <p className="text-[10px] text-gray-600 dark:text-gray-400">
+                  • Output: {model.maxOutput}
                 </p>
               </div>
-              {config.selectedModel === "gemini" && (
-                <div className="w-2 h-2 rounded-full bg-blue-500 mt-0.5"></div>
-              )}
-            </div>
-            <div className="space-y-0.5 mt-2">
-              <p className="text-[10px] text-gray-600 dark:text-gray-400">
-                • Context: 1M tokens (1,048,576)
-              </p>
-              <p className="text-[10px] text-gray-600 dark:text-gray-400">
-                • Output: Up to 8,192 tokens
-              </p>
-              <p className="text-[10px] text-gray-600 dark:text-gray-400">
-                • Knowledge: Aug 2024
-              </p>
-              <p className="text-[10px] text-gray-600 dark:text-gray-400">
-                • Features: Multimodal, Function calling
-              </p>
-            </div>
-          </button>
-
-          <button
-            onClick={() =>
-              setConfig(prev => ({ ...prev, selectedModel: "deepseek" }))
-            }
-            className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-              config.selectedModel === "deepseek"
-                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                : "border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-400 dark:hover:border-gray-600"
-            }`}
-            disabled={loading}
-          >
-            <div className="flex items-start justify-between mb-1">
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white text-xs mb-0.5">
-                  DeepSeek R1 Distill
-                </h4>
-                <p className="text-[10px] text-gray-500 dark:text-gray-500">
-                  deepseek-r1-distill-llama-70b
-                </p>
-              </div>
-              {config.selectedModel === "deepseek" && (
-                <div className="w-2 h-2 rounded-full bg-blue-500 mt-0.5"></div>
-              )}
-            </div>
-            <div className="space-y-0.5 mt-2">
-              <p className="text-[10px] text-gray-600 dark:text-gray-400">
-                • Context: 128K tokens
-              </p>
-              <p className="text-[10px] text-gray-600 dark:text-gray-400">
-                • Output: Up to 32,768 tokens
-              </p>
-              <p className="text-[10px] text-gray-600 dark:text-gray-400">
-                • Knowledge: Jan 2025
-              </p>
-              <p className="text-[10px] text-gray-600 dark:text-gray-400">
-                • Features: 70B params, Reasoning, Free
-              </p>
-            </div>
-          </button>
+            </button>
+          ))}
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { getModelById } from "../config/models";
 
 const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
   const { setOnNewChatCallback } = useApp();
@@ -99,25 +100,34 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
 
   // Initialize session on mount
   useEffect(() => {
+    let mounted = true;
     const initSession = async () => {
       try {
         await chatAPI.initialize();
-        setSessionInitialized(true);
-        // Fetch and notify parent of current model
-        const config = await chatAPI.getConfig();
-        if (config.success && config.config?.selectedModel && onModelChange) {
-          onModelChange(config.config.selectedModel);
+        if (mounted) {
+          setSessionInitialized(true);
+          // Fetch and notify parent of current model
+          const config = await chatAPI.getConfig();
+          if (config.success && config.config?.selectedModel && onModelChange) {
+            onModelChange(config.config.selectedModel);
+          }
         }
       } catch (error) {
-        console.error("Failed to initialize session:", error);
-        // Show error toast to user
-        toast.error(
-          `Failed to initialize session: ${error.message}. Please refresh the page.`
-        );
+        if (mounted) {
+          console.error("Failed to initialize session:", error);
+          // Show error toast to user
+          toast.error(
+            `Failed to initialize session: ${error.message}. Please refresh the page.`
+          );
+        }
       }
     };
     initSession();
-  }, [onModelChange]);
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startNewChat = async () => {
     try {
@@ -195,10 +205,9 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
     }
   };
 
-  const getModelDisplayName = model => {
-    if (model === "gemini") return "Gemini 2.0";
-    if (model === "deepseek") return "DeepSeek R1";
-    return model;
+  const getModelDisplayName = modelId => {
+    const model = getModelById(modelId);
+    return model ? model.name : modelId;
   };
 
   return (

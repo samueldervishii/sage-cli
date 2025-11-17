@@ -26,6 +26,19 @@ const Toast = ({ toast, onRemove }) => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Auto-dismiss after duration
+  useEffect(() => {
+    if (toast.duration > 0) {
+      const timer = setTimeout(() => {
+        setIsExiting(true);
+        setTimeout(() => {
+          onRemove(toast.id);
+        }, 300); // Exit animation duration
+      }, toast.duration);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.duration, toast.id, onRemove]);
+
   const getIcon = () => {
     switch (toast.type) {
       case "success":

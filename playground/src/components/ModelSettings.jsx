@@ -17,34 +17,41 @@ const ModelSettings = ({ isOpen, onClose, onConfigUpdate }) => {
 
   // Load current configuration when panel opens
   useEffect(() => {
+    let mounted = true;
+    const loadConfig = async () => {
+      try {
+        setLoading(true);
+        const response = await chatAPI.getConfig();
+        if (mounted && response.success && response.config) {
+          setConfig({
+            selectedModel: response.config.selectedModel || "gemini",
+            temperature: response.config.temperature || 1.0,
+            maxOutputTokens: response.config.maxOutputTokens || 8192,
+            topP: response.config.topP || 0.95,
+            topK: response.config.topK || 40,
+            memoryMode: response.config.memoryMode || "active",
+          });
+        }
+      } catch (err) {
+        // If no session yet, keep current defaults
+        // Only show error if it's not a 404 and component is still mounted
+        if (mounted && err.response?.status !== 404) {
+          toast.error("Failed to load configuration");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
     if (isOpen) {
       loadConfig();
     }
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-
-  const loadConfig = async () => {
-    try {
-      setLoading(true);
-      const response = await chatAPI.getConfig();
-      if (response.success && response.config) {
-        setConfig({
-          selectedModel: response.config.selectedModel || "gemini",
-          temperature: response.config.temperature || 1.0,
-          maxOutputTokens: response.config.maxOutputTokens || 8192,
-          topP: response.config.topP || 0.95,
-          topK: response.config.topK || 40,
-          memoryMode: response.config.memoryMode || "active",
-        });
-      }
-    } catch (err) {
-      // If no session yet, keep current defaults
-      if (err.response?.status !== 404) {
-        toast.error("Failed to load configuration");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleUpdate = async () => {
     try {

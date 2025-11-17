@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import SearchService from "../utils/search-service.mjs";
 import OpenRouterClient from "../utils/openrouter-client.mjs";
+import { getOpenRouterModelId } from "../config/models.mjs";
 import conversationStorage from "./conversation-storage.mjs";
 import memoryStorage from "./memory-storage.mjs";
 
@@ -20,7 +21,7 @@ class ChatService {
 
     // Model configuration with sensible defaults
     this.modelConfig = {
-      selectedModel: "gemini", // gemini, deepseek
+      selectedModel: "gemini", // gemini, deepseek, llama-3.2-3b, mistral-7b, qwen-2-7b, phi-3-mini, gemini-flash-or
       temperature: 1.0,
       maxOutputTokens: 8192,
       topP: 0.95,
@@ -38,10 +39,19 @@ class ChatService {
     const selectedModel = this.modelConfig.selectedModel || "gemini";
 
     // Initialize based on selected model
+    const openRouterModels = [
+      "deepseek",
+      "llama-3.2-3b",
+      "mistral-7b",
+      "qwen-2-7b",
+      "phi-3-mini",
+      "gemini-flash-or",
+    ];
+
     if (selectedModel === "gemini") {
       await this._initializeGemini();
-    } else if (selectedModel === "deepseek") {
-      await this._initializeDeepSeek();
+    } else if (openRouterModels.includes(selectedModel)) {
+      await this._initializeOpenRouter();
     } else {
       throw new Error(`Unknown model: ${selectedModel}`);
     }
@@ -150,8 +160,8 @@ class ChatService {
    * Initialize DeepSeek model via OpenRouter
    * @private
    */
-  async _initializeDeepSeek() {
-    console.log("[ChatService] Initializing DeepSeek...");
+  async _initializeOpenRouter() {
+    console.log("[ChatService] Initializing OpenRouter...");
     const openrouterKey = process.env.OPENROUTER_API_KEY;
     if (!openrouterKey) {
       throw new Error(
@@ -159,21 +169,23 @@ class ChatService {
       );
     }
 
-    const deepseekModel =
-      process.env.OPENROUTER_MODEL ||
-      "deepseek/deepseek-r1-distill-llama-70b:free";
+    // Get the correct OpenRouter model ID based on selected model
+    const modelId = this.modelConfig.selectedModel || "deepseek";
+    const openrouterModel = getOpenRouterModelId(modelId);
 
     console.log(
-      "[ChatService] Creating OpenRouter client with model:",
-      deepseekModel
+      `[ChatService] Creating OpenRouter client with model: ${openrouterModel} (internal ID: ${modelId})`
     );
-    this.openrouterClient = new OpenRouterClient(openrouterKey, deepseekModel);
+    this.openrouterClient = new OpenRouterClient(
+      openrouterKey,
+      openrouterModel
+    );
     console.log(
       "[ChatService] OpenRouter client created:",
       this.openrouterClient !== null
     );
 
-    // Store tools for DeepSeek
+    // Store tools for OpenRouter models
     this.tools = this._buildToolDefinitions();
     console.log("[ChatService] DeepSeek initialization complete");
   }
@@ -237,13 +249,24 @@ class ChatService {
       if (onThinking) onThinking();
 
       // Route to appropriate model
-      if (this.modelConfig.selectedModel === "deepseek") {
-        return await this._sendMessageDeepSeek(
+      // Models that use OpenRouter API (all except 'gemini')
+      const openRouterModels = [
+        "deepseek",
+        "llama-3.2-3b",
+        "mistral-7b",
+        "qwen-2-7b",
+        "phi-3-mini",
+        "gemini-flash-or",
+      ];
+
+      if (openRouterModels.includes(this.modelConfig.selectedModel)) {
+        return await this._sendMessageOpenRouter(
           finalInput,
           searchResults,
           callbacks
         );
       } else {
+        // Use Gemini direct API for 'gemini' model
         return await this._sendMessageGemini(
           finalInput,
           searchResults,
@@ -434,13 +457,13 @@ class ChatService {
    * Send message using DeepSeek via OpenRouter
    * @private
    */
-  async _sendMessageDeepSeek(finalInput, searchResults, callbacks) {
+  async _sendMessageOpenRouter(finalInput, searchResults, callbacks) {
     // Verify OpenRouter client is initialized
     if (!this.openrouterClient) {
       console.error(
         "[ChatService] OpenRouter client is null! Re-initializing..."
       );
-      await this._initializeDeepSeek();
+      await this._initializeOpenRouter();
     }
 
     const { onFunctionCall, onMemoryStore, onMemoryRecall, onProcessing } =
@@ -488,9 +511,10 @@ class ChatService {
       throw new Error(response.error);
     }
 
-    console.log("[ChatService] DeepSeek response:", {
+    console.log("[ChatService] OpenRouter response:", {
       success: response.success,
       content: response.content,
+      model: this.modelConfig.selectedModel,
       hasToolCalls: response.toolCalls && response.toolCalls.length > 0,
     });
 
@@ -832,9 +856,17 @@ When asked to generate code, provide clean, working examples with explanations.`
     }
 
     if (params.selectedModel !== undefined) {
-      const validModels = ["gemini", "deepseek"];
+      const validModels = [
+        "gemini",
+        "deepseek",
+        "llama-3.2-3b",
+        "mistral-7b",
+        "qwen-2-7b",
+        "phi-3-mini",
+        "gemini-flash-or",
+      ];
       if (!validModels.includes(params.selectedModel)) {
-        errors.push("Selected model must be one of: gemini, deepseek");
+        errors.push(`Selected model must be one of: ${validModels.join(", ")}`);
       }
     }
 

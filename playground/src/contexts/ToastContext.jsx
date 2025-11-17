@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 
 const ToastContext = createContext();
 
@@ -13,37 +19,33 @@ export const useToast = () => {
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
-  const addToast = useCallback(
-    (message, type = "info", duration = 5000) => {
+  const removeToast = useCallback(id => {
+    setToasts(prevToasts => prevToasts.filter(toast => toast.id !== id));
+  }, []);
+
+  const addToast = useCallback((message, type = "info", duration = 5000) => {
+    let toastId = null;
+
+    setToasts(prevToasts => {
       // Check for duplicate toasts (same message and type)
-      const isDuplicate = toasts.some(
+      const isDuplicate = prevToasts.some(
         toast => toast.message === message && toast.type === type
       );
 
       // Don't add if duplicate already exists
       if (isDuplicate) {
-        return null;
+        return prevToasts;
       }
 
+      // Create new toast only if not duplicate
       const id = Date.now() + Math.random();
+      toastId = id;
       const newToast = { id, message, type, duration };
 
-      setToasts(prevToasts => [...prevToasts, newToast]);
+      return [...prevToasts, newToast];
+    });
 
-      // Auto-dismiss after duration
-      if (duration > 0) {
-        setTimeout(() => {
-          removeToast(id);
-        }, duration);
-      }
-
-      return id;
-    },
-    [toasts]
-  );
-
-  const removeToast = useCallback(id => {
-    setToasts(prevToasts => prevToasts.filter(toast => toast.id !== id));
+    return toastId;
   }, []);
 
   const success = useCallback(
@@ -66,15 +68,18 @@ export const ToastProvider = ({ children }) => {
     [addToast]
   );
 
-  const value = {
-    toasts,
-    addToast,
-    removeToast,
-    success,
-    error,
-    warning,
-    info,
-  };
+  const value = useMemo(
+    () => ({
+      toasts,
+      addToast,
+      removeToast,
+      success,
+      error,
+      warning,
+      info,
+    }),
+    [toasts, addToast, removeToast, success, error, warning, info]
+  );
 
   return (
     <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
