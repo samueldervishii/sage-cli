@@ -3,7 +3,7 @@ import cors from "cors";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import chatRoutes from "./routes/chat-routes.mjs";
+import chatRoutes, { cleanupAllChatInstances } from "./routes/chat-routes.mjs";
 import memoryRoutes from "./routes/memory-routes.mjs";
 import historyRoutes from "./routes/history-routes.mjs";
 import { errorHandler } from "./middleware/error-handler.mjs";
@@ -14,10 +14,15 @@ import mongoDBService from "../services/mongodb-service.mjs";
 // Get version from root version.json
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const versionJson = JSON.parse(
-  readFileSync(join(__dirname, "../../../version.json"), "utf8")
-);
-const VERSION = versionJson.version;
+let VERSION = "unknown";
+try {
+  const versionJson = JSON.parse(
+    readFileSync(join(__dirname, "../../../version.json"), "utf8")
+  );
+  VERSION = versionJson.version;
+} catch (error) {
+  console.error("Warning: Could not read version.json:", error.message);
+}
 
 /**
  * API Server for Sage CLI
@@ -198,6 +203,9 @@ class SageAPIServer {
 
   async stop() {
     console.log("Stopping server...");
+
+    // Cleanup all chat instances (disconnect search services)
+    await cleanupAllChatInstances();
 
     // Close MongoDB connection
     if (this.dbConnected) {

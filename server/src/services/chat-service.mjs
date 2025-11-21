@@ -536,7 +536,18 @@ class ChatService {
 
       for (const toolCall of response.toolCalls) {
         const functionName = toolCall.function.name;
-        const functionArgs = JSON.parse(toolCall.function.arguments);
+        let functionArgs;
+
+        try {
+          functionArgs = JSON.parse(toolCall.function.arguments);
+        } catch (error) {
+          console.error(
+            `[ChatService] Invalid JSON in tool call arguments for ${functionName}:`,
+            error.message
+          );
+          // Skip this tool call if arguments are malformed
+          continue;
+        }
 
         if (onFunctionCall) onFunctionCall(functionName);
         functionCallNames.push(functionName);
@@ -964,6 +975,16 @@ When asked to generate code, provide clean, working examples with explanations.`
       success: true,
       config: { ...this.modelConfig },
     };
+  }
+
+  /**
+   * Clean up resources (disconnect search service)
+   * Should be called when chat instance is no longer needed
+   */
+  async cleanup() {
+    if (this.searchService) {
+      await this.searchService.disconnect();
+    }
   }
 }
 

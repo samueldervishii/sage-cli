@@ -11,9 +11,31 @@ router.get("/list", async (req, res, next) => {
   try {
     const { limit = 50, skip = 0 } = req.query;
 
+    // Validate and parse limit
+    const parsedLimit = Number(limit);
+    if (
+      !Number.isInteger(parsedLimit) ||
+      parsedLimit < 1 ||
+      parsedLimit > 1000
+    ) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Limit must be an integer between 1 and 1000",
+      });
+    }
+
+    // Validate and parse skip
+    const parsedSkip = Number(skip);
+    if (!Number.isInteger(parsedSkip) || parsedSkip < 0) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Skip must be a non-negative integer",
+      });
+    }
+
     const conversations = await conversationStorage.listConversations({
-      limit: parseInt(limit),
-      skip: parseInt(skip),
+      limit: parsedLimit,
+      skip: parsedSkip,
     });
 
     res.json({
@@ -108,9 +130,16 @@ router.delete("/clean", async (req, res, next) => {
   try {
     const { days = 30 } = req.query;
 
-    const count = await conversationStorage.cleanOldConversations(
-      parseInt(days)
-    );
+    // Validate and parse days
+    const parsedDays = Number(days);
+    if (!Number.isInteger(parsedDays) || parsedDays < 1 || parsedDays > 365) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Days must be an integer between 1 and 365",
+      });
+    }
+
+    const count = await conversationStorage.cleanOldConversations(parsedDays);
 
     res.json({
       success: true,

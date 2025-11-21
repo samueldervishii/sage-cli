@@ -14,7 +14,11 @@ class MemoryManager {
   async init() {
     try {
       await fs.ensureDir(this.memoryDir);
-      await fs.chmod(this.memoryDir, 0o700);
+
+      // Set directory permissions (Unix/Linux/macOS only)
+      if (os.platform() !== "win32") {
+        await fs.chmod(this.memoryDir, 0o700);
+      }
 
       // Load existing memories
       if (await fs.pathExists(this.memoryFile)) {
@@ -32,10 +36,14 @@ class MemoryManager {
    */
   async saveMemories() {
     try {
-      await fs.writeJson(this.memoryFile, this.memories, {
-        spaces: 2,
-        mode: 0o600,
-      });
+      const options = { spaces: 2 };
+
+      // Set file permissions (Unix/Linux/macOS only)
+      if (os.platform() !== "win32") {
+        options.mode = 0o600;
+      }
+
+      await fs.writeJson(this.memoryFile, this.memories, options);
     } catch (error) {
       if (process.env.DEBUG) {
         console.error(`Debug: Failed to save memories - ${error.message}`);

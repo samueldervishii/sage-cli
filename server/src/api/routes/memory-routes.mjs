@@ -12,16 +12,43 @@ router.get("/list", async (req, res, next) => {
   try {
     const { limit = 100, skip = 0, category = null } = req.query;
 
+    // Validate and parse limit
+    const parsedLimit = Number(limit);
+    if (
+      !Number.isInteger(parsedLimit) ||
+      parsedLimit < 1 ||
+      parsedLimit > 1000
+    ) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Limit must be an integer between 1 and 1000",
+      });
+    }
+
+    // Validate and parse skip
+    const parsedSkip = Number(skip);
+    if (!Number.isInteger(parsedSkip) || parsedSkip < 0) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Skip must be a non-negative integer",
+      });
+    }
+
+    // Sanitize category for cache key (only allow alphanumeric, dash, underscore)
+    const sanitizedCategory = category
+      ? category.replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 50)
+      : "all";
+
     // Create cache key based on query parameters
-    const cacheKey = `memories:list:${limit}:${skip}:${category || "all"}`;
+    const cacheKey = `memories:list:${parsedLimit}:${parsedSkip}:${sanitizedCategory}`;
 
     // Use cache with 30 second TTL for frequently accessed lists
     const memories = await cache.getOrSet(
       cacheKey,
       async () => {
         return await memoryStorage.listMemories({
-          limit: parseInt(limit),
-          skip: parseInt(skip),
+          limit: parsedLimit,
+          skip: parsedSkip,
           category,
         });
       },
@@ -272,7 +299,20 @@ router.get("/recent/:limit", async (req, res, next) => {
   try {
     const { limit = 10 } = req.params;
 
-    const memories = await memoryStorage.getRecentMemories(parseInt(limit));
+    // Validate and parse limit
+    const parsedLimit = Number(limit);
+    if (
+      !Number.isInteger(parsedLimit) ||
+      parsedLimit < 1 ||
+      parsedLimit > 1000
+    ) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Limit must be an integer between 1 and 1000",
+      });
+    }
+
+    const memories = await memoryStorage.getRecentMemories(parsedLimit);
 
     res.json({
       success: true,

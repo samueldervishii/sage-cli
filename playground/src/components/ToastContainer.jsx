@@ -29,13 +29,20 @@ const Toast = ({ toast, onRemove }) => {
   // Auto-dismiss after duration
   useEffect(() => {
     if (toast.duration > 0) {
+      let exitTimer = null;
       const timer = setTimeout(() => {
         setIsExiting(true);
-        setTimeout(() => {
+        exitTimer = setTimeout(() => {
           onRemove(toast.id);
         }, 300); // Exit animation duration
       }, toast.duration);
-      return () => clearTimeout(timer);
+
+      return () => {
+        clearTimeout(timer);
+        if (exitTimer) {
+          clearTimeout(exitTimer);
+        }
+      };
     }
   }, [toast.duration, toast.id, onRemove]);
 

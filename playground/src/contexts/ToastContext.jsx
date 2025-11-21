@@ -28,12 +28,13 @@ export const ToastProvider = ({ children }) => {
 
     setToasts(prevToasts => {
       // Check for duplicate toasts (same message and type)
-      const isDuplicate = prevToasts.some(
+      const existingToast = prevToasts.find(
         toast => toast.message === message && toast.type === type
       );
 
-      // Don't add if duplicate already exists
-      if (isDuplicate) {
+      // Don't add if duplicate already exists, but return the existing ID
+      if (existingToast) {
+        toastId = existingToast.id;
         return prevToasts;
       }
 
@@ -45,7 +46,7 @@ export const ToastProvider = ({ children }) => {
       return [...prevToasts, newToast];
     });
 
-    return toastId;
+    return toastId; // Returns existing ID if duplicate, new ID if created
   }, []);
 
   const success = useCallback(

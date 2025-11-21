@@ -25,9 +25,31 @@ if (missingVars.length > 0) {
 // Parse command line arguments
 const args = process.argv.slice(2);
 const portArg = args.find(arg => arg.startsWith("--port="));
-const port = portArg
-  ? parseInt(portArg.split("=")[1])
-  : process.env.PORT || 3000;
+
+let port = 3000;
+if (portArg) {
+  const portValue = portArg.split("=")[1];
+  if (!portValue) {
+    console.error("[ERROR] --port flag requires a value (e.g., --port=3000)");
+    process.exit(1);
+  }
+
+  const parsedPort = Number(portValue);
+  if (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+    console.error("[ERROR] Port must be an integer between 1 and 65535");
+    process.exit(1);
+  }
+  port = parsedPort;
+} else if (process.env.PORT) {
+  const envPort = Number(process.env.PORT);
+  if (!Number.isInteger(envPort) || envPort < 1 || envPort > 65535) {
+    console.error(
+      "[ERROR] PORT environment variable must be an integer between 1 and 65535"
+    );
+    process.exit(1);
+  }
+  port = envPort;
+}
 
 // Start API server
 const server = new SageAPIServer(port);

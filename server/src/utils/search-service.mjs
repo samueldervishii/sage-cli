@@ -135,7 +135,7 @@ class SearchService {
     const suspiciousPatterns = [
       /[<>]/, // HTML/XML tags
       /javascript:/i, // JavaScript protocol
-      /on\w+=/i, // Event handlers
+      /on[a-zA-Z]{1,20}=/i, // Event handlers (limited to prevent ReDoS)
     ];
 
     for (const pattern of suspiciousPatterns) {

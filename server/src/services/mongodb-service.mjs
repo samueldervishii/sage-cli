@@ -24,14 +24,19 @@ class MongoDBService {
       }
 
       this.client = new MongoClient(uri, {
-        // Connection timeouts
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        connectTimeoutMS: 10000,
+        // Connection timeouts (configurable via environment variables)
+        serverSelectionTimeoutMS:
+          parseInt(process.env.MONGODB_SERVER_SELECTION_TIMEOUT) || 5000,
+        // Increased default to 3 minutes for AI model calls that can take longer
+        socketTimeoutMS: parseInt(process.env.MONGODB_SOCKET_TIMEOUT) || 180000,
+        connectTimeoutMS:
+          parseInt(process.env.MONGODB_CONNECT_TIMEOUT) || 10000,
 
         // Connection pool configuration (performance optimization)
-        maxPoolSize: 50, // Maximum number of connections in the pool
-        minPoolSize: 5, // Minimum number of connections to maintain
+        maxPoolSize:
+          parseInt(process.env.MONGODB_MAX_POOL_SIZE) ||
+          (process.env.NODE_ENV === "production" ? 10 : 5),
+        minPoolSize: parseInt(process.env.MONGODB_MIN_POOL_SIZE) || 2,
         maxIdleTimeMS: 60000, // Close connections idle for 60 seconds
         waitQueueTimeoutMS: 10000, // Max time to wait for connection from pool
 

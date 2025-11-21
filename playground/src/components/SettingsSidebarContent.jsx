@@ -82,7 +82,11 @@ const SettingsSidebarContent = ({ onConfigUpdate }) => {
   };
 
   const handleSliderChange = (key, value) => {
-    setConfig(prev => ({ ...prev, [key]: parseFloat(value) }));
+    const parsed = parseFloat(value);
+    // Only update if the parsed value is a valid number
+    if (!isNaN(parsed)) {
+      setConfig(prev => ({ ...prev, [key]: parsed }));
+    }
   };
 
   return (

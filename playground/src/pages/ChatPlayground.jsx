@@ -40,6 +40,8 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
       lastMessage: messages[messages.length - 1],
     });
 
+    let isMounted = true;
+
     // Clean up any existing interval
     if (streamingIntervalRef.current) {
       clearInterval(streamingIntervalRef.current);
@@ -69,6 +71,15 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
       const streamingSpeed = 15; // milliseconds per character
 
       streamingIntervalRef.current = setInterval(() => {
+        if (!isMounted) {
+          // Component unmounted, clean up interval
+          if (streamingIntervalRef.current) {
+            clearInterval(streamingIntervalRef.current);
+            streamingIntervalRef.current = null;
+          }
+          return;
+        }
+
         if (currentIndex < fullText.length) {
           setStreamingText(fullText.substring(0, currentIndex + 1));
           currentIndex++;
@@ -82,10 +93,12 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
       }, streamingSpeed);
     }
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when messages change
     return () => {
+      isMounted = false;
       if (streamingIntervalRef.current) {
         clearInterval(streamingIntervalRef.current);
+        streamingIntervalRef.current = null;
       }
     };
   }, [messages]); // Only depend on messages, not streamingMessageIndex
@@ -141,19 +154,29 @@ const ChatPlayground = ({ onModelChange, currentModel = "gemini" }) => {
       if (config.success && config.config?.selectedModel && onModelChange) {
         onModelChange(config.config.selectedModel);
       }
+      toast.success("New chat started successfully");
     } catch (error) {
       console.error("Failed to clear session:", error);
+      toast.error("Failed to start new chat. Please try again.");
+      throw error; // Re-throw to let caller handle if needed
     }
   };
 
   // Register the startNewChat function with the context
   useEffect(() => {
-    setOnNewChatCallback(() => startNewChat);
+    setOnNewChatCallback(startNewChat);
     return () => setOnNewChatCallback(null);
-  }, [setOnNewChatCallback]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only register on mount
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+
+    // Ensure session is initialized before sending
+    if (!sessionInitialized) {
+      toast.error("Session not ready. Please wait a moment and try again.");
+      return;
+    }
 
     const userMessage = { role: "user", content: input };
     setMessages(prev => [...prev, userMessage]);

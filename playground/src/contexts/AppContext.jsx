@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { healthCheck } from "../services/api";
 
 const AppContext = createContext();
@@ -17,16 +17,30 @@ export const AppProvider = ({ children }) => {
 
   // Initialize dark mode from localStorage or default to true
   const [darkMode, setDarkMode] = useState(() => {
-    const savedMode = localStorage.getItem("darkMode");
-    return savedMode !== null ? JSON.parse(savedMode) : true;
+    try {
+      const savedMode = localStorage.getItem("darkMode");
+      return savedMode !== null ? JSON.parse(savedMode) : true;
+    } catch (error) {
+      console.error("Failed to read darkMode from localStorage:", error);
+      return true; // Default to dark mode
+    }
   });
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    const savedCollapsed = localStorage.getItem("sidebarCollapsed");
-    return savedCollapsed !== null ? JSON.parse(savedCollapsed) : false;
+    try {
+      const savedCollapsed = localStorage.getItem("sidebarCollapsed");
+      return savedCollapsed !== null ? JSON.parse(savedCollapsed) : false;
+    } catch (error) {
+      console.error(
+        "Failed to read sidebarCollapsed from localStorage:",
+        error
+      );
+      return false;
+    }
   });
 
-  const [onNewChatCallback, setOnNewChatCallback] = useState(null);
+  // Use ref instead of state for callback to avoid unnecessary re-renders
+  const onNewChatCallbackRef = useRef(null);
 
   const checkServerHealth = async () => {
     try {
@@ -67,6 +81,18 @@ export const AppProvider = ({ children }) => {
 
   const toggleSidebar = () => {
     setSidebarCollapsed(prev => !prev);
+  };
+
+  // Setter for new chat callback
+  const setOnNewChatCallback = callback => {
+    onNewChatCallbackRef.current = callback;
+  };
+
+  // Getter/caller for new chat callback
+  const onNewChatCallback = () => {
+    if (onNewChatCallbackRef.current) {
+      onNewChatCallbackRef.current();
+    }
   };
 
   const value = {

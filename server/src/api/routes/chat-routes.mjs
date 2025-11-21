@@ -277,4 +277,32 @@ router.post("/config/reset", (req, res) => {
   });
 });
 
+/**
+ * Cleanup all chat instances (disconnect search services)
+ * Should be called on server shutdown
+ */
+export async function cleanupAllChatInstances() {
+  console.log(
+    `[ChatRoutes] Cleaning up ${chatInstances.size} chat instances...`
+  );
+  const cleanupPromises = [];
+
+  for (const [sessionId, chatService] of chatInstances.entries()) {
+    if (chatService && typeof chatService.cleanup === "function") {
+      cleanupPromises.push(
+        chatService.cleanup().catch(err => {
+          console.error(
+            `[ChatRoutes] Error cleaning up chat instance ${sessionId}:`,
+            err.message
+          );
+        })
+      );
+    }
+  }
+
+  await Promise.all(cleanupPromises);
+  chatInstances.clear();
+  console.log("[ChatRoutes] All chat instances cleaned up");
+}
+
 export default router;

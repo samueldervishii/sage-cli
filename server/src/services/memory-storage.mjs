@@ -94,8 +94,15 @@ class MemoryStorage {
       : "timestamp";
     const sanitizedSortOrder = sortOrder === 1 ? 1 : -1;
 
-    // Validate category if provided
-    const query = category ? { category: { $eq: category } } : {};
+    // Validate and sanitize category to prevent NoSQL injection
+    let query = {};
+    if (category) {
+      // Ensure category is a string and doesn't contain MongoDB operators
+      if (typeof category !== "string" || category.includes("$")) {
+        throw new Error("Invalid category format");
+      }
+      query = { category: { $eq: category } };
+    }
     const sort = { [sanitizedSortBy]: sanitizedSortOrder };
 
     const memories = await this.collection
@@ -253,9 +260,9 @@ class MemoryStorage {
   async getMemoriesByCategory(category) {
     await this.ensureInitialized();
 
-    // Validate category is a string
-    if (typeof category !== "string") {
-      throw new Error("category must be a string");
+    // Validate category is a string and doesn't contain MongoDB operators
+    if (typeof category !== "string" || category.includes("$")) {
+      throw new Error("Invalid category format");
     }
 
     const memories = await this.collection

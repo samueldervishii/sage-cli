@@ -51,7 +51,10 @@ const History = () => {
       a.href = url;
       a.download = `conversation-${id}.json`;
       a.click();
-      URL.revokeObjectURL(url);
+      // Delay revocation to ensure download starts
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
       console.error("Failed to export conversation:", error);
     }
@@ -211,12 +214,14 @@ const History = () => {
                 </div>
                 <div className="flex gap-2 ml-2">
                   <button
-                    onClick={() =>
-                      handleDelete(
+                    onClick={() => {
+                      const id =
                         selectedConversation?.id ||
-                          selectedConversation?.conversation?.id
-                      )
-                    }
+                        selectedConversation?.conversation?.id;
+                      if (id) {
+                        handleDelete(id);
+                      }
+                    }}
                     disabled={
                       !selectedConversation?.id &&
                       !selectedConversation?.conversation?.id
@@ -227,12 +232,14 @@ const History = () => {
                     <span className="hidden sm:inline">Delete</span>
                   </button>
                   <button
-                    onClick={() =>
-                      handleExport(
+                    onClick={() => {
+                      const id =
                         selectedConversation?.id ||
-                          selectedConversation?.conversation?.id
-                      )
-                    }
+                        selectedConversation?.conversation?.id;
+                      if (id) {
+                        handleExport(id);
+                      }
+                    }}
                     disabled={
                       !selectedConversation?.id &&
                       !selectedConversation?.conversation?.id

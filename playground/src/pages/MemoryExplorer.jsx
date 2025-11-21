@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { memoryAPI } from "../services/api";
+import { useToast } from "../contexts/ToastContext";
 import {
   MagnifyingGlassIcon,
   TrashIcon,
@@ -8,6 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 const MemoryExplorer = () => {
+  const toast = useToast();
   const [memories, setMemories] = useState([]);
   const [stats, setStats] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,7 +62,10 @@ const MemoryExplorer = () => {
   };
 
   const handleAddMemory = async () => {
-    if (!newMemory.trim()) return;
+    if (!newMemory.trim()) {
+      toast.warning("Please enter a memory to add");
+      return;
+    }
 
     try {
       await memoryAPI.add(newMemory);
@@ -68,8 +73,10 @@ const MemoryExplorer = () => {
       setShowAddModal(false);
       loadMemories();
       loadStats();
+      toast.success("Memory added successfully");
     } catch (error) {
       console.error("Failed to add memory:", error);
+      toast.error("Failed to add memory. Please try again.");
     }
   };
 
@@ -119,7 +126,7 @@ const MemoryExplorer = () => {
                 <SparklesIcon className="w-5 h-5 sm:w-7 sm:h-7 text-gray-700 dark:text-gray-300" />
               </div>
               <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-900 dark:text-white">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                   Memory Explorer
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">

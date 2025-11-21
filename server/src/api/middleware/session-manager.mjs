@@ -86,13 +86,35 @@ export function sessionManager(req, res, next) {
       data: {},
     });
   } else {
-    // Update last access time
+    // Update last access time atomically
     const session = sessions.get(sessionId);
-    session.lastAccess = Date.now();
+    if (session) {
+      session.lastAccess = Date.now();
+    } else {
+      // Race condition: session was deleted between has() and get()
+      // Create a new session instead
+      sessionId = uuidv4();
+      sessions.set(sessionId, {
+        id: sessionId,
+        createdAt: Date.now(),
+        lastAccess: Date.now(),
+        data: {},
+      });
+    }
   }
 
-  // Attach session to request
-  req.session = sessions.get(sessionId);
+  // Attach session to request (with additional safety check)
+  const session = sessions.get(sessionId);
+  if (!session) {
+    // Extremely rare: session deleted between previous check and this one
+    // Return error to prevent undefined session usage
+    return res.status(500).json({
+      error: "Session Error",
+      message: "Session was invalidated, please retry",
+    });
+  }
+
+  req.session = session;
   req.sessionId = sessionId;
 
   // Send session ID in response header
