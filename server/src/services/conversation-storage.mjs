@@ -20,7 +20,7 @@ class ConversationStorage {
   /**
    * Create a new conversation
    */
-  async createConversation(metadata = {}) {
+  async createConversation(metadata = {}, model = null) {
     await this.ensureInitialized();
 
     const conversation = {
@@ -33,6 +33,7 @@ class ConversationStorage {
         nodeVersion: process.version,
         ...metadata,
       },
+      model,
       deleted: false,
     };
 

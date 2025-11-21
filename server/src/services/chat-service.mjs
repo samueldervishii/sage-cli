@@ -100,7 +100,11 @@ class ChatService {
         };
       } else {
         // Conversation not found, create new one
-        const newConversation = await conversationStorage.createConversation();
+        const fullModel = this._getFullModelString(selectedModel);
+        const newConversation = await conversationStorage.createConversation(
+          {},
+          fullModel
+        );
         this.currentConversationId = newConversation.id;
 
         return {
@@ -210,7 +214,12 @@ class ChatService {
     try {
       // Create conversation on first message if it doesn't exist
       if (!this.currentConversationId) {
-        const newConversation = await conversationStorage.createConversation();
+        const selectedModel = this.modelConfig.selectedModel || "gemini";
+        const fullModel = this._getFullModelString(selectedModel);
+        const newConversation = await conversationStorage.createConversation(
+          {},
+          fullModel
+        );
         this.currentConversationId = newConversation.id;
       }
 
@@ -757,6 +766,20 @@ When asked to generate code, provide clean, working examples with explanations.`
         })),
       },
     };
+  }
+
+  /**
+   * Get full model string based on internal model ID
+   * @private
+   */
+  _getFullModelString(modelId) {
+    // For Gemini, we use the env var or default
+    if (modelId === "gemini") {
+      return process.env.GEMINI_MODEL || "gemini-2.0-flash-exp";
+    }
+
+    // For OpenRouter models, use the mapping
+    return getOpenRouterModelId(modelId);
   }
 
   /**
